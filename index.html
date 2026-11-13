@@ -5,17 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ladle Refractory Wear Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
 :root{--bg:#fff;--card:#f7f6f3;--ink:#1a1a19;--mut:#6b6a65;--line:#e1e0d9;--ok:#e3f3e3;--okt:#1d6b1d;--warn:#fdf0d0;--warnt:#7a5200;--bad:#fbe3e3;--badt:#8a1f1f}
 @media (prefers-color-scheme:dark){:root{--bg:#1a1a19;--card:#242422;--ink:#f0efec;--mut:#a5a49c;--line:#383835;--ok:#16301a;--okt:#8fd68f;--warn:#3a2f10;--warnt:#f0c866;--bad:#3a1818;--badt:#f09595}}
 *{box-sizing:border-box}
 body{margin:0;padding:16px;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
-.wrap{max-width:1000px;margin:0 auto}
+.wrap{max-width:1040px;margin:0 auto}
 h1{font-size:22px;font-weight:500;margin:0 0 2px}
 .sub{color:var(--mut);font-size:13px;margin-bottom:14px}
 .ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 16px;background:var(--card);border-radius:12px;padding:14px;margin-bottom:12px}
 .ctl label{display:flex;justify-content:space-between;font-size:13px;color:var(--mut)}
-.ctl input{width:100%}
+.ctl input,.card input[type=range]{width:100%}
 .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px}
 .k{background:var(--card);border-radius:8px;padding:10px 12px}
 .k b{display:block;font-size:22px;font-weight:500}
@@ -25,66 +26,141 @@ h1{font-size:22px;font-weight:500;margin:0 0 2px}
 .card{background:var(--card);border-radius:12px;padding:12px}
 .card h2{font-size:15px;font-weight:500;margin:0 0 6px}
 .box{position:relative;height:230px}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{text-align:right;padding:4px 6px;border-bottom:1px solid var(--line)}
-th:first-child,td:first-child{text-align:left}
+.note{font-size:12px;color:var(--mut);margin-top:6px}
+#v3{height:320px;cursor:grab;touch-action:none}
+.bar{height:8px;border-radius:4px;background:linear-gradient(90deg,#3b8ad9,#f0b429,#d03b3b);margin:6px 0 2px}
+.lg{display:flex;justify-content:space-between;font-size:11px;color:var(--mut)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+details summary{cursor:pointer;font-weight:500;font-size:15px}
 </style>
 </head>
 <body>
 <div class="wrap">
 <h1>Ladle refractory wear dashboard</h1>
-<div class="sub">Synthetic demo data · same output names as SINTEF/refractorywear</div>
+<div class="sub">Synthetic demo data · geometry and brick numbering follow the SINTEF ladle-lifetime paper (2D axisymmetric, 40 brick rows)</div>
 <div class="ctl" id="ctl"></div>
 <div class="kpi">
-<div class="k"><span>Worst brick layer</span><b id="k1"></b></div>
+<div class="k"><span>Worst brick row</span><b id="k1"></b></div>
 <div class="k"><span>Max erosion</span><b id="k2"></b></div>
 <div class="k"><span>Heats left (est.)</span><b id="k3"></b></div>
 <div class="k"><span>Final steel T</span><b id="k4"></b></div>
 </div>
 <div id="st"></div>
 <div class="grid">
+<div class="card"><h2>3D cutaway (drag to rotate)</h2><div id="v3"></div>
+<div class="bar"></div><div class="lg"><span>0%</span><span>erosion of wear lining</span><span>80% limit</span></div>
+<div class="note">Illustrative shape: the real dimensions are confidential. The model itself is 2D, so this 3D view is the axisymmetric model revolved around the plug axis.</div></div>
+<div class="card"><h2>Wall cross-section at one brick row</h2>
+<label style="font-size:13px;color:var(--mut);display:flex;justify-content:space-between">Brick row (1 = bottom, 40 = top)<b id="o_row" style="color:var(--ink)">34</b></label>
+<input type="range" id="row" min="1" max="40" step="1" value="34">
+<div id="xs"></div><div id="xt" style="font-size:13px"></div></div>
+<div class="card"><h2>Erosion by brick row</h2><div class="box"><canvas id="c3"></canvas></div>
+<div class="note">Shape is qualitative (rises toward the slag line, dip near rows 16-17, high above the melt), after the paper's Figs 7-8. Values are not real.</div></div>
 <div class="card"><h2>Temperature (°C)</h2><div class="box"><canvas id="c1"></canvas></div></div>
 <div class="card"><h2>Heat flux (a.u.)</h2><div class="box"><canvas id="c2"></canvas></div></div>
-<div class="card"><h2>Erosion by brick layer</h2><div class="box"><canvas id="c3"></canvas></div></div>
-<div class="card"><h2>Next heat</h2><div style="max-height:230px;overflow:auto"><table id="tb"></table></div></div>
+<div class="card"><details open><summary>Refractory materials and wear mechanisms</summary>
+<table>
+<tr><th>Zone</th><th>Lining</th><th>What wears it</th></tr>
+<tr><td>Steel-wetted wall</td><td>MgO-C brick</td><td>Carbon binder dissolves into the steel; stirring gas raises wall shear and mass transfer</td></tr>
+<tr><td>Slag line</td><td>MgO-C brick</td><td>MgO dissolves into the slag; waves from the gas plume sweep the wall</td></tr>
+<tr><td>Above the melt</td><td>MgO-C brick</td><td>Splash, thermal cracking, vacuum treatment (not modeled)</td></tr>
+<tr><td>Bottom</td><td>Stacked discs, porous plug at centre</td><td>Counted for heat storage only; bottom erosion is not modeled</td></tr>
+<tr><td>Outer layers</td><td>Backup/insulation, steel shell</td><td>No erosion; heat loss to surroundings</td></tr>
+</table>
+<div class="note">Per the paper: 3 wear-brick layers, 7 radial cells per wall column (split of the rest not published). Material property tables are in the paper, not reproduced here.</div></details></div>
 </div>
 </div>
 <script>
-const N=10,LIMIT=0.8;
-const P=[["heat","Heats since rebuild",1,120,45,1],["steel","Liquid steel (ton)",60,140,100,1],["tap","Tapping T (°C)",1560,1660,1610,1],["gas","Gas flow (L/min)",100,600,300,10],["power","Heater power (MW)",0,15,8,1]];
+const NR=40,LIM=0.8;
+const P=[["heat","Heats since rebuild",1,120,45,1],["steel","Liquid steel (ton)",110,140,120,1],["tap","Tapping T (°C)",1560,1660,1610,1],["gas","Gas flow (NL/min)",500,1200,800,10],["power","Heater power (MW)",0,15,8,1]];
 const v={};
 const ctl=document.getElementById("ctl");
 P.forEach(([k,n,a,b,d,s])=>{v[k]=d;const l=document.createElement("label");l.innerHTML=`<span>${n}</span><b id="o_${k}">${d}</b>`;const i=document.createElement("input");i.type="range";i.min=a;i.max=b;i.step=s;i.value=d;i.oninput=()=>{v[k]=+i.value;document.getElementById("o_"+k).textContent=i.value;run()};const w=document.createElement("div");w.append(l,i);ctl.append(w)});
-function rate(tap,gas,st){const r=[];for(let i=1;i<=N;i++)r.push(0.012*(Math.exp(-(((i-6)/1.8)**2))+0.25)*(gas/300)**0.6*(tap/1600)**8*(st/100)**0.3);return r}
+let rowSel=34;
+document.getElementById("row").oninput=e=>{rowSel=+e.target.value;document.getElementById("o_row").textContent=rowSel;if(last)xsec(last)};
+function steelRow(){return Math.max(20,Math.min(36,Math.round(34*v.steel/120)))}
+function rates(){const rs=steelRow(),g=(v.gas/800)**0.6*(v.tap/1600)**8*(v.steel/120)**0.3,r=[];
+for(let i=1;i<=NR;i++){let z;
+if(i<rs)z=(0.25+0.75*Math.pow(i/rs,1.5))*(1-0.25*Math.exp(-(((i-16.5)/1.5)**2)));
+else if(i<=rs+2)z=1.8;
+else z=Math.min(1,0.6+0.04*(i-rs-2));
+r.push(0.0085*z*g)}
+return r}
+function zoneOf(i,rs){return i<rs?"steel-wetted wall":i<=rs+2?"slag line":"above the melt (splash zone)"}
 function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function sim(){const R=rng(v.heat),m=[],S=[],G=[],M=[],qs=[],qg=[],qw=[],qb=[];let on=0,off=0;
 for(let j=0;j<=280;j++){const t=j*0.25,isOn=t>20&&t<40;if(isOn)on++;if(!isOn&&t>40)off++;
 const T=v.tap-0.9*t+on*v.power*0.0125-0.3*off*0.05,Sg=T+15-0.1*t,Wl=900+0.2*(T-1500);
-const a=0.9*(T-Wl)*(v.gas/300)**0.4,b=0.6*(Sg-Wl);
+const a=0.9*(T-Wl)*(v.gas/800)**0.4,b=0.6*(Sg-Wl);
 if(j%4===0){m.push(t);S.push(T);G.push(Sg);M.push(T+(R()+R()+R()-1.5)*2);qs.push(b);qg.push(a);qw.push(0.5*(a+b));qb.push(0.8*a)}}
-const pr=rate(v.tap,v.gas,v.steel);return{m,S,G,M,qs,qg,qw,qb,pr,y:pr.map(x=>Math.min(1,v.heat*x))}}
+const pr=rates();return{m,S,G,M,qs,qg,qw,qb,pr,y:pr.map(x=>Math.min(1,v.heat*x))}}
+function col(e){const t=Math.min(1,e/LIM),a=new THREE.Color(0x3b8ad9),b=new THREE.Color(0xf0b429),c=new THREE.Color(0xd03b3b);return t<.5?a.lerp(b,t*2):b.lerp(c,(t-.5)*2)}
+const el=document.getElementById("v3"),HH=4,RB=1.45,RT=1.65;
+const rad=y=>RB+(RT-RB)*y/HH;
+const ren=new THREE.WebGLRenderer({antialias:true,alpha:true});
+ren.setPixelRatio(window.devicePixelRatio||1);el.appendChild(ren.domElement);
+const scene=new THREE.Scene(),cam=new THREE.PerspectiveCamera(38,1,0.1,100);
+cam.position.set(0,5.4,10.5);cam.lookAt(0,2,0);
+scene.add(new THREE.AmbientLight(0xffffff,0.75));
+const dl=new THREE.DirectionalLight(0xffffff,0.6);dl.position.set(4,8,6);scene.add(dl);
+const grp=new THREE.Group();grp.rotation.y=Math.PI/4;scene.add(grp);
+const prof=(d)=>{const p=[];for(let j=0;j<=NR;j++){const y=HH*j/NR;p.push(new THREE.Vector2(rad(y)+d,y))}return p};
+const wallG=new THREE.LatheGeometry(prof(0),56,0,Math.PI*1.5);
+wallG.setAttribute("color",new THREE.BufferAttribute(new Float32Array(wallG.attributes.position.count*3),3));
+grp.add(new THREE.Mesh(wallG,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})));
+grp.add(new THREE.Mesh(new THREE.LatheGeometry(prof(0.3),56,0,Math.PI*1.5),new THREE.MeshLambertMaterial({color:0x888780,transparent:true,opacity:0.3,side:THREE.DoubleSide})));
+const bot=new THREE.Mesh(new THREE.CircleGeometry(RB,56,0,Math.PI*1.5),new THREE.MeshLambertMaterial({color:0x7a5a3a,side:THREE.DoubleSide}));
+bot.rotation.x=-Math.PI/2;grp.add(bot);
+const plug=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,0.06,24),new THREE.MeshLambertMaterial({color:0x333333}));plug.position.y=0.04;grp.add(plug);
+let liq=[];
+function setLiq(rs){liq.forEach(m=>grp.remove(m));liq=[];
+const y1=HH*(rs-1)/NR,y2=HH*(rs+2)/NR;
+const mk=(ya,yb,c,o)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(rad(yb)-0.03,rad(ya)-0.03,yb-ya,56,1,false,0,Math.PI*1.5),new THREE.MeshLambertMaterial({color:c,transparent:true,opacity:o,side:THREE.DoubleSide}));m.position.y=(ya+yb)/2;grp.add(m);liq.push(m)};
+mk(0.02,y1,0xe8923a,0.5);mk(y1,y2,0x6f8f6a,0.8)}
+function paint(y){const c=wallG.attributes.color,n=NR+1;
+for(let k=0;k<c.count;k++){const j=k%n,r=Math.max(1,Math.min(NR,j)),cc=col(y[r-1]);c.setXYZ(k,cc.r,cc.g,cc.b)}
+c.needsUpdate=true}
+function resize(){const w=el.clientWidth||340;ren.setSize(w,320);cam.aspect=w/320;cam.updateProjectionMatrix();ren.render(scene,cam)}
+window.addEventListener("resize",resize);
+let drag=false,px=0;
+el.addEventListener("pointerdown",e=>{drag=true;px=e.clientX;el.style.cursor="grabbing"});
+window.addEventListener("pointerup",()=>{drag=false;el.style.cursor="grab"});
+window.addEventListener("pointermove",e=>{if(!drag)return;grp.rotation.y+=(e.clientX-px)*0.01;px=e.clientX;ren.render(scene,cam)});
+function xsec(r){const e=r.y[rowSel-1],rs=steelRow(),W=120,x0=14;
+const eroded=Math.min(W,e*W);
+let s=`<svg viewBox="0 0 270 118" width="100%" role="img" aria-label="Wall cross-section at brick row ${rowSel}: three MgO-C wear bricks, backup layers and steel shell, with ${Math.round(e*100)} percent of the wear lining eroded.">`;
+s+=`<rect x="${x0}" y="10" width="${eroded}" height="46" fill="none" stroke="#d03b3b" stroke-dasharray="4 3"/>`;
+s+=`<rect x="${x0+eroded}" y="10" width="${W-eroded}" height="46" fill="#4a4845"/>`;
+[40,80].forEach(d=>{s+=`<line x1="${x0+d}" x2="${x0+d}" y1="10" y2="56" stroke="#898781" stroke-width="1"/>`});
+s+=`<rect x="${x0+W}" y="10" width="90" height="46" fill="#d9c9a3"/>`;
+[30,60].forEach(d=>{s+=`<line x1="${x0+W+d}" x2="${x0+W+d}" y1="10" y2="56" stroke="#a89a78"/>`});
+s+=`<rect x="${x0+W+90}" y="10" width="20" height="46" fill="#888780"/>`;
+const t=(x,y,a,c)=>`<text x="${x}" y="${y}" font-size="11" fill="${c||"#898781"}" text-anchor="${a||"start"}">`;
+s+=t(x0,72)+`hot face</text>`+t(x0+60,88,"middle")+`wear lining x3 (MgO-C)</text>`+t(x0+W+45,104,"middle")+`backup / insulation</text>`+t(x0+W+100,72,"middle")+`shell</text>`;
+s+=`</svg>`;
+document.getElementById("xs").innerHTML=s;
+document.getElementById("xt").innerHTML=`Row ${rowSel}: ${zoneOf(rowSel,rs)}. Eroded ${(e*100).toFixed(0)}% of the wear lining, ${((1-e)*100).toFixed(0)}% left.`}
 const css=getComputedStyle(document.documentElement);
 const tc=()=>css.getPropertyValue("--mut").trim(),gc=()=>css.getPropertyValue("--line").trim();
 const base=(extra)=>({responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{labels:{color:tc(),boxWidth:10,font:{size:11}}}},scales:Object.assign({x:{ticks:{color:tc(),maxTicksLimit:8},grid:{display:false}},y:{ticks:{color:tc()},grid:{color:gc()}}},extra||{})});
 const ln=(l,c,d)=>({label:l,borderColor:c,borderWidth:2,pointRadius:0,tension:.2,borderDash:d||[],data:[]});
 const c1=new Chart("c1",{type:"line",data:{labels:[],datasets:[ln("Steel (model)","#2a78d6"),ln("Slag (model)","#eb6834",[6,3]),{label:"Measured",type:"line",showLine:false,pointRadius:3,backgroundColor:"#898781",borderColor:"#898781",data:[]}]},options:base({y:{min:1500,max:1660,ticks:{color:tc()},grid:{color:gc()}}})});
 const c2=new Chart("c2",{type:"line",data:{labels:[],datasets:[ln("qslagV","#eb6834"),ln("qsteelV","#2a78d6"),ln("qwallV","#1baf7a"),ln("qbottomV","#6250d6")]},options:base()});
-const c3=new Chart("c3",{data:{labels:[...Array(N)].map((_,i)=>"#"+(i+1)),datasets:[{type:"bar",label:"yerode",data:[],backgroundColor:[],borderRadius:4,maxBarThickness:26},{type:"line",label:"Limit 80%",data:Array(N).fill(80),borderColor:"#898781",borderDash:[5,4],borderWidth:1.5,pointRadius:0}]},options:base({y:{min:0,max:100,ticks:{color:tc(),callback:x=>x+"%"},grid:{color:gc()}}})});
-function run(){const r=sim(),y=r.y;let w=0;y.forEach((x,i)=>{if(x>y[w])w=i});
-const left=Math.max(0,(LIMIT-y[w])/r.pr[w]);
-k1.textContent="#"+(w+1);k2.textContent=Math.round(y[w]*100)+"%";k3.textContent=Math.round(left);k4.textContent=Math.round(r.S[r.S.length-1])+" °C";
-const st=document.getElementById("st");
-if(y[w]>=LIMIT){st.style.cssText="background:var(--bad);color:var(--badt)";st.textContent="Critical wear: do not use this ladle for another heat."}
-else if(left<5){st.style.cssText="background:var(--warn);color:var(--warnt)";st.textContent="Wear approaching limit: plan relining."}
-else{st.style.cssText="background:var(--ok);color:var(--okt)";st.textContent="Ladle OK for the next heat."}
+const c3=new Chart("c3",{data:{labels:[...Array(NR)].map((_,i)=>String(i+1)),datasets:[{type:"bar",label:"erosion",data:[],backgroundColor:[],borderRadius:2},{type:"line",label:"Limit 80%",data:Array(NR).fill(80),borderColor:"#898781",borderDash:[5,4],borderWidth:1.5,pointRadius:0}]},options:base({x:{title:{display:true,text:"brick row",color:tc()},ticks:{color:tc(),maxTicksLimit:10},grid:{display:false}},y:{min:0,max:100,ticks:{color:tc(),callback:x=>x+"%"},grid:{color:gc()}}})});
+let last=null;
+function run(){const r=sim(),y=r.y,rs=steelRow();last=r;let w=0;y.forEach((x,i)=>{if(x>y[w])w=i});
+const left=Math.max(0,(LIM-y[w])/r.pr[w]);
+const $=id=>document.getElementById(id);$("k1").textContent="#"+(w+1);$("k2").textContent=Math.round(y[w]*100)+"%";$("k3").textContent=Math.round(left);$("k4").textContent=Math.round(r.S[r.S.length-1])+" °C";
+const after=Math.max(...y.map((x,i)=>x+r.pr[i])),st=document.getElementById("st");
+if(y[w]>=LIM){st.style.cssText="background:var(--bad);color:var(--badt)";st.textContent="Critical wear: do not use this ladle for another heat."}
+else if(after>=LIM){st.style.cssText="background:var(--warn);color:var(--warnt)";st.textContent="Next heat would push the worst row past the limit: plan relining or repair."}
+else{st.style.cssText="background:var(--ok);color:var(--okt)";st.textContent="Ladle OK for the next heat (max erosion after it: "+Math.round(after*100)+"%)."}
 c1.data.labels=r.m;c1.data.datasets[0].data=r.S;c1.data.datasets[1].data=r.G;c1.data.datasets[2].data=r.M;c1.update();
 c2.data.labels=r.m;[r.qs,r.qg,r.qw,r.qb].forEach((d,i)=>c2.data.datasets[i].data=d);c2.update();
-c3.data.datasets[0].data=y.map(x=>Math.round(x*100));c3.data.datasets[0].backgroundColor=y.map((_,i)=>i===w?"#eb6834":"#2a78d6");c3.update();
-const after=y.map((x,i)=>Math.min(1,x+r.pr[i])),am=Math.max(...after);
-let h="<tr><th>Layer</th><th>Now</th><th>+ Heat</th><th>After</th></tr>";
-y.forEach((x,i)=>{h+=`<tr><td>#${i+1}</td><td>${(x*100).toFixed(1)}%</td><td>${(r.pr[i]*100).toFixed(2)}%</td><td>${(after[i]*100).toFixed(1)}%</td></tr>`});
-h+=`<tr><td colspan="4" style="text-align:left;padding-top:8px">${am>=LIMIT?"After this heat: unsafe":"After this heat: safe"} (max ${(am*100).toFixed(0)}%)</td></tr>`;
-document.getElementById("tb").innerHTML=h}
+c3.data.datasets[0].data=y.map(x=>Math.round(x*100));
+c3.data.datasets[0].backgroundColor=y.map((_,i)=>i+1<rs?"#2a78d6":i+1<=rs+2?"#eb6834":"#9aa7b8");c3.update();
+setLiq(rs);paint(y);xsec(r);resize()}
 run();
 </script>
 </body>

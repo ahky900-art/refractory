@@ -1,31 +1,36 @@
 # Ladle refractory wear dashboard
 
-Prototype dashboard that visualizes ladle temperatures, heat fluxes, and
-refractory erosion per brick layer, plus a next-heat safety check.
+Prototype dashboard for ladle lining wear, structured after the SINTEF paper
+"A pragmatical physics-based model for predicting ladle lifetime" (2024) and its
+open-source model, SINTEF/refractorywear (MIT license).
+
+## What it shows
+
+- 3D cutaway of the ladle (the paper's 2D axisymmetric model revolved), colored by erosion per brick row
+- Wall cross-section at any brick row: 3 MgO-C wear bricks, backup/insulation, steel shell
+- Erosion by brick row (40 rows; slag line near row 34 for a 120 t heat)
+- Steel/slag temperature and heat flux over a heat
+- Materials and wear-mechanism summary (carbon dissolves into steel, MgO into slag)
 
 ## Live dashboard
 
 Open `index.html` in a browser, or enable GitHub Pages (Settings > Pages >
 Deploy from a branch > `main` / root) and visit
-`https://<your-user>.github.io/refractory/`. No installation needed.
-
-## Streamlit version
-
-```
-pip install -r requirements.txt
-streamlit run app.py
-```
+`https://<your-user>.github.io/refractory/`.
 
 ## Data
 
-The current version uses **synthetic data**. Output names (`TsteelV`, `TslagV`,
-`TmeasV`, `qslagV`, `qsteelV`, `qwallV`, `qbottomV`, `yerode`) follow the
-SINTEF/refractorywear model, but the numbers are not real.
+All numbers are **synthetic**. Output names (`TsteelV`, `TslagV`, `TmeasV`, `q*V`,
+`yerode`) follow the SINTEF model. The erosion profile shape is qualitative, after
+the paper's figures. Real ladle dimensions are confidential, so the 3D shape is
+illustrative.
 
-To use the real model, replace the body of `simulate_heat()` in `app.py` with a
-call to that model and return a dict with the same keys.
+## Streamlit version
+
+`app.py` (older, simplified 10-layer version): `pip install -r requirements.txt`
+then `streamlit run app.py`.
 
 ## Credits
 
-Variable naming follows [SINTEF/refractorywear](https://github.com/SINTEF/refractorywear)
-(MIT license). If you copy any of its code into this repo, keep its license notice.
+[SINTEF/refractorywear](https://github.com/SINTEF/refractorywear), MIT license.
+If you copy any of its code into this repo, keep its license notice.
