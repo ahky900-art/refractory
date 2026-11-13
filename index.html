@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ladle Refractory Wear Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{--bg:#fff;--card:#f7f6f3;--ink:#1a1a19;--mut:#6b6a65;--line:#e1e0d9;--ok:#e3f3e3;--okt:#1d6b1d;--warn:#fdf0d0;--warnt:#7a5200;--bad:#fbe3e3;--badt:#8a1f1f}
+@media (prefers-color-scheme:dark){:root{--bg:#1a1a19;--card:#242422;--ink:#f0efec;--mut:#a5a49c;--line:#383835;--ok:#16301a;--okt:#8fd68f;--warn:#3a2f10;--warnt:#f0c866;--bad:#3a1818;--badt:#f09595}}
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1000px;margin:0 auto}
+h1{font-size:22px;font-weight:500;margin:0 0 2px}
+.sub{color:var(--mut);font-size:13px;margin-bottom:14px}
+.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 16px;background:var(--card);border-radius:12px;padding:14px;margin-bottom:12px}
+.ctl label{display:flex;justify-content:space-between;font-size:13px;color:var(--mut)}
+.ctl input{width:100%}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px}
+.k{background:var(--card);border-radius:8px;padding:10px 12px}
+.k b{display:block;font-size:22px;font-weight:500}
+.k span{font-size:12px;color:var(--mut)}
+#st{border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
+.card{background:var(--card);border-radius:12px;padding:12px}
+.card h2{font-size:15px;font-weight:500;margin:0 0 6px}
+.box{position:relative;height:230px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:right;padding:4px 6px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Ladle refractory wear dashboard</h1>
+<div class="sub">Synthetic demo data · same output names as SINTEF/refractorywear</div>
+<div class="ctl" id="ctl"></div>
+<div class="kpi">
+<div class="k"><span>Worst brick layer</span><b id="k1"></b></div>
+<div class="k"><span>Max erosion</span><b id="k2"></b></div>
+<div class="k"><span>Heats left (est.)</span><b id="k3"></b></div>
+<div class="k"><span>Final steel T</span><b id="k4"></b></div>
+</div>
+<div id="st"></div>
+<div class="grid">
+<div class="card"><h2>Temperature (°C)</h2><div class="box"><canvas id="c1"></canvas></div></div>
+<div class="card"><h2>Heat flux (a.u.)</h2><div class="box"><canvas id="c2"></canvas></div></div>
+<div class="card"><h2>Erosion by brick layer</h2><div class="box"><canvas id="c3"></canvas></div></div>
+<div class="card"><h2>Next heat</h2><div style="max-height:230px;overflow:auto"><table id="tb"></table></div></div>
+</div>
+</div>
+<script>
+const N=10,LIMIT=0.8;
+const P=[["heat","Heats since rebuild",1,120,45,1],["steel","Liquid steel (ton)",60,140,100,1],["tap","Tapping T (°C)",1560,1660,1610,1],["gas","Gas flow (L/min)",100,600,300,10],["power","Heater power (MW)",0,15,8,1]];
+const v={};
+const ctl=document.getElementById("ctl");
+P.forEach(([k,n,a,b,d,s])=>{v[k]=d;const l=document.createElement("label");l.innerHTML=`<span>${n}</span><b id="o_${k}">${d}</b>`;const i=document.createElement("input");i.type="range";i.min=a;i.max=b;i.step=s;i.value=d;i.oninput=()=>{v[k]=+i.value;document.getElementById("o_"+k).textContent=i.value;run()};const w=document.createElement("div");w.append(l,i);ctl.append(w)});
+function rate(tap,gas,st){const r=[];for(let i=1;i<=N;i++)r.push(0.012*(Math.exp(-(((i-6)/1.8)**2))+0.25)*(gas/300)**0.6*(tap/1600)**8*(st/100)**0.3);return r}
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function sim(){const R=rng(v.heat),m=[],S=[],G=[],M=[],qs=[],qg=[],qw=[],qb=[];let on=0,off=0;
+for(let j=0;j<=280;j++){const t=j*0.25,isOn=t>20&&t<40;if(isOn)on++;if(!isOn&&t>40)off++;
+const T=v.tap-0.9*t+on*v.power*0.0125-0.3*off*0.05,Sg=T+15-0.1*t,Wl=900+0.2*(T-1500);
+const a=0.9*(T-Wl)*(v.gas/300)**0.4,b=0.6*(Sg-Wl);
+if(j%4===0){m.push(t);S.push(T);G.push(Sg);M.push(T+(R()+R()+R()-1.5)*2);qs.push(b);qg.push(a);qw.push(0.5*(a+b));qb.push(0.8*a)}}
+const pr=rate(v.tap,v.gas,v.steel);return{m,S,G,M,qs,qg,qw,qb,pr,y:pr.map(x=>Math.min(1,v.heat*x))}}
+const css=getComputedStyle(document.documentElement);
+const tc=()=>css.getPropertyValue("--mut").trim(),gc=()=>css.getPropertyValue("--line").trim();
+const base=(extra)=>({responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{labels:{color:tc(),boxWidth:10,font:{size:11}}}},scales:Object.assign({x:{ticks:{color:tc(),maxTicksLimit:8},grid:{display:false}},y:{ticks:{color:tc()},grid:{color:gc()}}},extra||{})});
+const ln=(l,c,d)=>({label:l,borderColor:c,borderWidth:2,pointRadius:0,tension:.2,borderDash:d||[],data:[]});
+const c1=new Chart("c1",{type:"line",data:{labels:[],datasets:[ln("Steel (model)","#2a78d6"),ln("Slag (model)","#eb6834",[6,3]),{label:"Measured",type:"line",showLine:false,pointRadius:3,backgroundColor:"#898781",borderColor:"#898781",data:[]}]},options:base({y:{min:1500,max:1660,ticks:{color:tc()},grid:{color:gc()}}})});
+const c2=new Chart("c2",{type:"line",data:{labels:[],datasets:[ln("qslagV","#eb6834"),ln("qsteelV","#2a78d6"),ln("qwallV","#1baf7a"),ln("qbottomV","#6250d6")]},options:base()});
+const c3=new Chart("c3",{data:{labels:[...Array(N)].map((_,i)=>"#"+(i+1)),datasets:[{type:"bar",label:"yerode",data:[],backgroundColor:[],borderRadius:4,maxBarThickness:26},{type:"line",label:"Limit 80%",data:Array(N).fill(80),borderColor:"#898781",borderDash:[5,4],borderWidth:1.5,pointRadius:0}]},options:base({y:{min:0,max:100,ticks:{color:tc(),callback:x=>x+"%"},grid:{color:gc()}}})});
+function run(){const r=sim(),y=r.y;let w=0;y.forEach((x,i)=>{if(x>y[w])w=i});
+const left=Math.max(0,(LIMIT-y[w])/r.pr[w]);
+k1.textContent="#"+(w+1);k2.textContent=Math.round(y[w]*100)+"%";k3.textContent=Math.round(left);k4.textContent=Math.round(r.S[r.S.length-1])+" °C";
+const st=document.getElementById("st");
+if(y[w]>=LIMIT){st.style.cssText="background:var(--bad);color:var(--badt)";st.textContent="Critical wear: do not use this ladle for another heat."}
+else if(left<5){st.style.cssText="background:var(--warn);color:var(--warnt)";st.textContent="Wear approaching limit: plan relining."}
+else{st.style.cssText="background:var(--ok);color:var(--okt)";st.textContent="Ladle OK for the next heat."}
+c1.data.labels=r.m;c1.data.datasets[0].data=r.S;c1.data.datasets[1].data=r.G;c1.data.datasets[2].data=r.M;c1.update();
+c2.data.labels=r.m;[r.qs,r.qg,r.qw,r.qb].forEach((d,i)=>c2.data.datasets[i].data=d);c2.update();
+c3.data.datasets[0].data=y.map(x=>Math.round(x*100));c3.data.datasets[0].backgroundColor=y.map((_,i)=>i===w?"#eb6834":"#2a78d6");c3.update();
+const after=y.map((x,i)=>Math.min(1,x+r.pr[i])),am=Math.max(...after);
+let h="<tr><th>Layer</th><th>Now</th><th>+ Heat</th><th>After</th></tr>";
+y.forEach((x,i)=>{h+=`<tr><td>#${i+1}</td><td>${(x*100).toFixed(1)}%</td><td>${(r.pr[i]*100).toFixed(2)}%</td><td>${(after[i]*100).toFixed(1)}%</td></tr>`});
+h+=`<tr><td colspan="4" style="text-align:left;padding-top:8px">${am>=LIMIT?"After this heat: unsafe":"After this heat: safe"} (max ${(am*100).toFixed(0)}%)</td></tr>`;
+document.getElementById("tb").innerHTML=h}
+run();
+</script>
+</body>
+</html>

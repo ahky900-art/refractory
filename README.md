@@ -1,9 +1,15 @@
 # Ladle refractory wear dashboard
 
-Streamlit prototype that visualizes ladle temperatures, heat fluxes, and
+Prototype dashboard that visualizes ladle temperatures, heat fluxes, and
 refractory erosion per brick layer, plus a next-heat safety check.
 
-## Run
+## Live dashboard
+
+Open `index.html` in a browser, or enable GitHub Pages (Settings > Pages >
+Deploy from a branch > `main` / root) and visit
+`https://<your-user>.github.io/refractory/`. No installation needed.
+
+## Streamlit version
 
 ```
 pip install -r requirements.txt
