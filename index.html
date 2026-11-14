@@ -3,21 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ladle Refractory Wear Dashboard</title>
+<title>내화물 마모 대시보드</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
 :root{--bg:#fff;--card:#f7f6f3;--ink:#1a1a19;--mut:#6b6a65;--line:#e1e0d9;--ok:#e3f3e3;--okt:#1d6b1d;--warn:#fdf0d0;--warnt:#7a5200;--bad:#fbe3e3;--badt:#8a1f1f}
 @media (prefers-color-scheme:dark){:root{--bg:#1a1a19;--card:#242422;--ink:#f0efec;--mut:#a5a49c;--line:#383835;--ok:#16301a;--okt:#8fd68f;--warn:#3a2f10;--warnt:#f0c866;--bad:#3a1818;--badt:#f09595}}
 *{box-sizing:border-box}
-body{margin:0;padding:16px;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+body{margin:0;padding:16px;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Malgun Gothic","Apple SD Gothic Neo",sans-serif}
 .wrap{max-width:1040px;margin:0 auto}
 h1{font-size:22px;font-weight:500;margin:0 0 2px}
 .sub{color:var(--mut);font-size:13px;margin-bottom:14px}
-.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 16px;background:var(--card);border-radius:12px;padding:14px;margin-bottom:12px}
+.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px 16px;background:var(--card);border-radius:12px;padding:14px;margin-bottom:12px}
 .ctl label{display:flex;justify-content:space-between;font-size:13px;color:var(--mut)}
-.ctl input,.card input[type=range]{width:100%}
-.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px}
+.ctl input[type=range],.card input[type=range]{width:100%}
+.seg{display:flex;gap:6px;margin-top:4px}
+.seg button{flex:1;padding:6px 8px;border:0.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;font-size:13px;cursor:pointer}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px}
 .k{background:var(--card);border-radius:8px;padding:10px 12px}
 .k b{display:block;font-size:22px;font-weight:500}
 .k span{font-size:12px;color:var(--mut)}
@@ -28,140 +31,320 @@ h1{font-size:22px;font-weight:500;margin:0 0 2px}
 .box{position:relative;height:230px}
 .note{font-size:12px;color:var(--mut);margin-top:6px}
 #v3{height:320px;cursor:grab;touch-action:none}
-.bar{height:8px;border-radius:4px;background:linear-gradient(90deg,#3b8ad9,#f0b429,#d03b3b);margin:6px 0 2px}
+.bar{height:8px;border-radius:4px;margin:6px 0 2px}
 .lg{display:flex;justify-content:space-between;font-size:11px;color:var(--mut)}
+.chips{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--mut);margin-top:6px}
+.chips i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 table{width:100%;border-collapse:collapse;font-size:12.5px}
 th,td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top}
 details summary{cursor:pointer;font-weight:500;font-size:15px}
+[hidden]{display:none!important}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.tabs button{padding:7px 14px;border:0.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;font-size:14px;cursor:pointer}
+.tabs button.on{background:var(--ink);color:var(--bg)}
+select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;font-size:14px;margin-top:4px}
 </style>
 </head>
 <body>
 <div class="wrap">
-<h1>Ladle refractory wear dashboard</h1>
-<div class="sub">Synthetic demo data · geometry and brick numbering follow the SINTEF ladle-lifetime paper (2D axisymmetric, 40 brick rows)</div>
-<div class="ctl" id="ctl"></div>
+<h1>내화물 마모 대시보드</h1>
+<div class="tabs" id="tabs"><button data-t="ladle" class="on">래들 (실제 모델)</button><button data-t="kiln">로타리 킬른</button><button data-t="rfcc">RFCC 재생기</button><button data-t="inc">소각로</button><button data-t="rh">가열로</button><button data-t="bf">고로</button><button data-t="sr">2차 개질로</button><button data-t="ab">흡수탑</button></div>
+<div id="p_ladle">
+<div class="sub">SINTEF 공개 코드(refractorywear)를 공개 예시 히트 7654321(래들 12번, 강철 132.3 t)로 실제 실행한 결과 · 새 라이닝에서 1히트</div>
+<div class="ctl">
+<div><label><span>히트 수 (같은 히트를 반복한다고 가정)</span><b id="o_n">30</b></label><input type="range" id="n" min="1" max="100" step="1" value="30"></div>
+<div><label><span>점검할 벽돌 행 (1=바닥, 37=상단)</span><b id="o_row">30</b></label><input type="range" id="row" min="1" max="37" step="1" value="30"></div>
+<div><label><span>도면 색상</span></label><div class="seg" id="seg"><button data-m="mat" class="on">재질</button><button data-m="temp">온도</button><button data-m="ero">침식</button></div></div>
+</div>
 <div class="kpi">
-<div class="k"><span>Worst brick row</span><b id="k1"></b></div>
-<div class="k"><span>Max erosion</span><b id="k2"></b></div>
-<div class="k"><span>Heats left (est.)</span><b id="k3"></b></div>
-<div class="k"><span>Final steel T</span><b id="k4"></b></div>
+<div class="k"><span>가장 닳는 행</span><b id="k1"></b></div>
+<div class="k"><span>현재 최대 침식</span><b id="k2"></b></div>
+<div class="k"><span>남은 히트 (추정)</span><b id="k3"></b></div>
+<div class="k"><span>1히트당 최대 침식</span><b id="k4"></b></div>
+<div class="k"><span>강철 온도 모델-실측 오차</span><b id="k5"></b></div>
 </div>
 <div id="st"></div>
 <div class="grid">
-<div class="card"><h2>3D cutaway (drag to rotate)</h2><div id="v3"></div>
-<div class="bar"></div><div class="lg"><span>0%</span><span>erosion of wear lining</span><span>80% limit</span></div>
-<div class="note">Illustrative shape: the real dimensions are confidential. The model itself is 2D, so this 3D view is the axisymmetric model revolved around the plug axis.</div></div>
-<div class="card"><h2>Wall cross-section at one brick row</h2>
-<label style="font-size:13px;color:var(--mut);display:flex;justify-content:space-between">Brick row (1 = bottom, 40 = top)<b id="o_row" style="color:var(--ink)">34</b></label>
-<input type="range" id="row" min="1" max="40" step="1" value="34">
-<div id="xs"></div><div id="xt" style="font-size:13px"></div></div>
-<div class="card"><h2>Erosion by brick row</h2><div class="box"><canvas id="c3"></canvas></div>
-<div class="note">Shape is qualitative (rises toward the slag line, dip near rows 16-17, high above the melt), after the paper's Figs 7-8. Values are not real.</div></div>
-<div class="card"><h2>Temperature (°C)</h2><div class="box"><canvas id="c1"></canvas></div></div>
-<div class="card"><h2>Heat flux (a.u.)</h2><div class="box"><canvas id="c2"></canvas></div></div>
-<div class="card"><details open><summary>Refractory materials and wear mechanisms</summary>
+<div class="card"><h2>2D 내화물 단면 도면</h2>
+<div id="lin"></div>
+<div id="lgd"></div>
+<div class="note">래들 중심축 기준 오른쪽 절반의 수직 단면. 실제 치수(반지름 1.45 m, 높이 3.5 m, 벽돌 37행)를 쓰고, 벽·바닥 두께만 3배로 확대했어요. 점선은 새 라이닝의 마모 벽돌 경계, 빨간 사각형은 점검 중인 행이에요. 이 코드에서는 벽의 7층이 높이에 따라 달라지지 않고, 바닥도 같은 7층이에요.</div></div>
+<div class="card"><h2>3D 단면 (드래그로 회전)</h2><div id="v3"></div>
+<div class="bar" style="background:linear-gradient(90deg,#3b8ad9,#f0b429,#d03b3b)"></div><div class="lg"><span>0%</span><span>마모 벽돌 침식률</span><span>75% 한계</span></div>
+<div class="note">모델은 2D 축대칭이라, 이 3D는 단면을 중심축으로 회전시킨 모양이에요.</div></div>
+<div class="card"><h2>선택한 행의 벽 단면</h2>
+<div id="xs"></div><div id="xt" style="font-size:13px;margin:4px 0"></div><div id="xtb"></div>
+<div class="note">온도는 히트 종료 시점 모델 값이고, 층 중심 온도예요. 침식이 쌓여도 온도는 새 라이닝 기준 그대로예요.</div></div>
+<div class="card"><h2>행별 침식률</h2><div class="box"><canvas id="c3"></canvas></div>
+<div class="note">1히트의 모델 결과에 히트 수를 곱한 값이에요. 쇳물·슬래그와 닿지 않는 위쪽 행(34~37)은 코드가 침식을 계산하지 않아 0이에요.</div></div>
+<div class="card"><h2>온도 (°C): 모델과 실측</h2><div class="box"><canvas id="c1"></canvas></div>
+<div class="note">슬래그 온도는 검증 데이터가 없고, 모델에서 가열 구간에 높게 나와요.</div></div>
+<div class="card"><h2>6번 행 벽 내면·외면 온도 (°C)</h2><div class="box"><canvas id="c2"></canvas></div></div>
+<div class="card"><details><summary>내화물 재질과 마모 방식</summary>
 <table>
-<tr><th>Zone</th><th>Lining</th><th>What wears it</th></tr>
-<tr><td>Steel-wetted wall</td><td>MgO-C brick</td><td>Carbon binder dissolves into the steel; stirring gas raises wall shear and mass transfer</td></tr>
-<tr><td>Slag line</td><td>MgO-C brick</td><td>MgO dissolves into the slag; waves from the gas plume sweep the wall</td></tr>
-<tr><td>Above the melt</td><td>MgO-C brick</td><td>Splash, thermal cracking, vacuum treatment (not modeled)</td></tr>
-<tr><td>Bottom</td><td>Stacked discs, porous plug at centre</td><td>Counted for heat storage only; bottom erosion is not modeled</td></tr>
-<tr><td>Outer layers</td><td>Backup/insulation, steel shell</td><td>No erosion; heat loss to surroundings</td></tr>
+<tr><th>층 (안쪽 → 바깥쪽)</th><th>두께 mm</th><th>밀도 kg/m³</th><th>열전도율 W/mK</th><th>비열 J/kgK</th></tr>
+<tr><td>MgO-C 마모 벽돌 ×3</td><td>57씩 (합 171)</td><td>3540</td><td>30*</td><td>1500</td></tr>
+<tr><td>돌로마이트 (durable 벽돌)</td><td>20</td><td>2900</td><td>2.7</td><td>1500</td></tr>
+<tr><td>알루미나 (outer 벽돌)</td><td>65</td><td>2500</td><td>2.0</td><td>718</td></tr>
+<tr><td>단열재</td><td>5</td><td>300</td><td>0.1</td><td>900</td></tr>
+<tr><td>철피</td><td>30 (코드에서 ×2 보정)</td><td>7100</td><td>12</td><td>720</td></tr>
 </table>
-<div class="note">Per the paper: 3 wear-brick layers, 7 radial cells per wall column (split of the rest not published). Material property tables are in the paper, not reproduced here.</div></details></div>
+<div class="note">*논문 표 1은 6 W/mK이고 코드는 30이에요(튜닝). 실행 시 runutils.py가 층별 열전도율 보정 계수를 추가로 적용해요. 마모 벽돌의 탄소 부피 비율 5%는 코드에 "적절한 값 필요" 주석이 붙은 임시값이에요.</div>
+<table style="margin-top:8px">
+<tr><th>구역</th><th>마모 방식</th></tr>
+<tr><td>쇳물과 닿는 벽</td><td>탄소 바인더가 강철에 녹아요. 교반 가스가 세면 벽 전단이 커져 더 빨리 닳아요.</td></tr>
+<tr><td>슬래그 라인</td><td>MgO가 슬래그에 녹아요. 가스 기둥이 만드는 파도가 벽을 쓸어요.</td></tr>
+<tr><td>쇳물 위쪽</td><td>튐과 열응력 균열이 원인인데, 모델은 계산하지 않아요.</td></tr>
+<tr><td>바닥</td><td>벽과 같은 7층으로 열 저장만 계산하고, 바닥 침식은 계산하지 않아요.</td></tr>
+</table></details></div>
 </div>
+</div>
+<div id="p_eq" hidden>
+<div class="sub" id="eq_sub"></div>
+<div class="ctl">
+<div><label><span>가동 기간 (개월)</span><b id="o_m">12</b></label><input type="range" id="m" min="0" max="36" step="1" value="12"></div>
+<div><label><span>교체 기준 잔여 두께 (%)</span><b id="o_r">40</b></label><input type="range" id="r" min="20" max="60" step="5" value="40"></div>
+<div><label><span>점검할 구역</span></label><select id="zsel"></select></div>
+<div><label><span>도면 색상</span></label><div class="seg" id="seg2"><button data-m="mat" class="on">재질</button><button data-m="wear">마모</button></div></div>
+</div>
+<div class="kpi">
+<div class="k"><span>가장 먼저 기준에 닿는 구역</span><b id="e1" style="font-size:17px"></b></div>
+<div class="k"><span>그 구역의 잔여 두께</span><b id="e2"></b></div>
+<div class="k"><span>교체 기준까지 (추정)</span><b id="e3"></b></div>
+<div class="k"><span>교체 기준 도달 구역</span><b id="e4"></b></div>
+</div>
+<div id="e_st"></div>
+<div class="grid">
+<div class="card"><h2>2D 구역별 내화물 단면 도면</h2><div id="e_dwg"></div><div id="e_leg"></div><div class="note" id="e_note"></div></div>
+<div class="card"><h2>선택한 구역의 벽 단면</h2><div id="e_xs"></div><div id="e_xt" style="font-size:13px;margin:4px 0"></div><div id="e_xtb"></div></div>
+<div class="card"><h2>구역별 잔여 두께</h2><div class="box"><canvas id="e_c1"></canvas></div></div>
+<div class="card"><h2>가동 기간에 따른 잔여 두께</h2><div class="box"><canvas id="e_c2"></canvas></div></div>
+<div class="card" style="grid-column:1/-1"><details open><summary>구역별 라이닝과 마모 방식</summary><div id="e_tb" style="overflow-x:auto"></div>
+<div class="note">이 탭의 값은 래들처럼 실제 모델을 실행한 결과가 아니라, 공개 자료의 일반적인 구성과 수명 범위를 바탕으로 한 <b>예시 가정값</b>이에요. 구역 길이, 두께, 수명은 실제 설비 자료로 바꿔 쓰세요. 스크립트 맨 아래의 <code>EQS</code> 객체만 고치면 돼요. 마모는 구역별로 월 일정(선형)이라고 가정했고, 수명은 잔여 두께 40%에 닿는 시점으로 맞췄어요.</div></details></div>
+</div>
+</div>
+
 </div>
 <script>
-const NR=40,LIM=0.8;
-const P=[["heat","Heats since rebuild",1,120,45,1],["steel","Liquid steel (ton)",110,140,120,1],["tap","Tapping T (°C)",1560,1660,1610,1],["gas","Gas flow (NL/min)",500,1200,800,10],["power","Heater power (MW)",0,15,8,1]];
-const v={};
-const ctl=document.getElementById("ctl");
-P.forEach(([k,n,a,b,d,s])=>{v[k]=d;const l=document.createElement("label");l.innerHTML=`<span>${n}</span><b id="o_${k}">${d}</b>`;const i=document.createElement("input");i.type="range";i.min=a;i.max=b;i.step=s;i.value=d;i.oninput=()=>{v[k]=+i.value;document.getElementById("o_"+k).textContent=i.value;run()};const w=document.createElement("div");w.append(l,i);ctl.append(w)});
-let rowSel=34;
-document.getElementById("row").oninput=e=>{rowSel=+e.target.value;document.getElementById("o_row").textContent=rowSel;if(last)xsec(last)};
-function steelRow(){return Math.max(20,Math.min(36,Math.round(34*v.steel/120)))}
-function rates(){const rs=steelRow(),g=(v.gas/800)**0.6*(v.tap/1600)**8*(v.steel/120)**0.3,r=[];
-for(let i=1;i<=NR;i++){let z;
-if(i<rs)z=(0.25+0.75*Math.pow(i/rs,1.5))*(1-0.25*Math.exp(-(((i-16.5)/1.5)**2)));
-else if(i<=rs+2)z=1.8;
-else z=Math.min(1,0.6+0.04*(i-rs-2));
-r.push(0.0085*z*g)}
-return r}
-function zoneOf(i,rs){return i<rs?"steel-wetted wall":i<=rs+2?"slag line":"above the melt (splash zone)"}
-function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-function sim(){const R=rng(v.heat),m=[],S=[],G=[],M=[],qs=[],qg=[],qw=[],qb=[];let on=0,off=0;
-for(let j=0;j<=280;j++){const t=j*0.25,isOn=t>20&&t<40;if(isOn)on++;if(!isOn&&t>40)off++;
-const T=v.tap-0.9*t+on*v.power*0.0125-0.3*off*0.05,Sg=T+15-0.1*t,Wl=900+0.2*(T-1500);
-const a=0.9*(T-Wl)*(v.gas/800)**0.4,b=0.6*(Sg-Wl);
-if(j%4===0){m.push(t);S.push(T);G.push(Sg);M.push(T+(R()+R()+R()-1.5)*2);qs.push(b);qg.push(a);qw.push(0.5*(a+b));qb.push(0.8*a)}}
-const pr=rates();return{m,S,G,M,qs,qg,qw,qb,pr,y:pr.map(x=>Math.min(1,v.heat*x))}}
-function col(e){const t=Math.min(1,e/LIM),a=new THREE.Color(0x3b8ad9),b=new THREE.Color(0xf0b429),c=new THREE.Color(0xd03b3b);return t<.5?a.lerp(b,t*2):b.lerp(c,(t-.5)*2)}
-const el=document.getElementById("v3"),HH=4,RB=1.45,RT=1.65;
-const rad=y=>RB+(RT-RB)*y/HH;
+const D={"t":[0.0,0.5,1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5,10.0,10.5,11.0,11.5,12.0,12.5,13.0,13.5,14.0,14.5,15.0,15.5,16.0,16.5,17.0,17.5,18.0,18.5,19.0,19.5,20.0,20.5,21.0,21.5,22.0,22.5,23.0,23.5,24.0,24.5,25.0,25.5,26.0,26.5,27.0,27.5,28.0,28.5,29.0,29.5,30.0,30.5,31.0,31.5,32.0,32.5,33.0,33.5,34.0,34.5,35.0,35.5,36.0,36.5,37.0,37.5,38.0,38.5,39.0,39.5,40.0,40.5,41.0,41.5,42.0,42.5,43.0,43.5,44.0,44.5,45.0,45.5,46.0,46.5,47.0,47.5,48.0,48.5,49.0,49.5,50.0,50.5,51.0,51.5,52.0,52.5,53.0,53.5,54.0,54.5,55.0,55.5,56.0,56.5,57.0,57.5,58.0,58.5,59.0,59.5,60.0,60.5,61.0,61.5,62.0,62.5,63.0,63.5,64.0,64.5,65.0,65.5,66.0,66.5,67.0,67.5,68.0,68.5,69.0,69.5,70.0,70.5,71.0,71.5,72.0,72.5,73.0,73.5,74.0,74.5,75.0,75.5,76.0,76.5,77.0,77.5,78.0,78.5,79.0,79.5,80.0,80.5,81.0,81.5,82.0],"Tsteel":[1605.19,1600.13,1595.87,1592.15,1588.86,1585.92,1583.26,1580.83,1578.57,1576.47,1574.51,1572.66,1570.91,1569.24,1567.65,1566.12,1564.66,1563.24,1561.87,1560.54,1559.25,1558.0,1556.78,1555.59,1554.43,1553.29,1552.18,1551.13,1550.1,1549.09,1548.1,1548.73,1550.06,1549.02,1541.41,1538.85,1539.07,1540.2,1541.41,1542.81,1544.42,1546.11,1542.59,1542.95,1544.58,1546.43,1548.52,1550.6,1552.75,1555.04,1557.2,1559.16,1561.27,1563.32,1565.47,1566.86,1567.54,1569.25,1571.21,1573.17,1575.15,1577.06,1579.06,1581.07,1583.21,1585.27,1587.34,1589.41,1591.48,1592.67,1592.85,1592.73,1592.41,1593.24,1594.89,1596.73,1598.69,1600.72,1597.41,1596.1,1595.26,1594.57,1593.91,1593.24,1592.55,1591.85,1591.16,1590.46,1589.77,1589.09,1588.4,1587.72,1587.05,1586.38,1585.7,1585.03,1584.37,1583.71,1583.05,1582.4,1581.75,1581.11,1580.47,1579.83,1579.2,1578.57,1577.94,1577.32,1576.71,1576.09,1575.48,1574.87,1574.27,1573.67,1573.08,1572.51,1571.95,1571.39,1570.82,1570.26,1569.71,1569.15,1568.59,1568.04,1567.49,1566.94,1566.39,1565.85,1565.31,1564.77,1564.23,1563.69,1563.15,1562.62,1562.09,1561.56,1561.03,1560.51,1559.98,1559.46,1558.94,1557.79,1556.67,1555.59,1554.54,1553.52,1552.54,1551.6,1550.78,1551.69,1553.26,1553.95,1553.99,1553.8,1553.49,1553.12,1552.72,1552.37,1551.95,1551.51,1551.06,1550.59,1550.21,1549.78,1549.33],"Tslag":[1605.19,1527.04,1541.34,1542.78,1544.86,1546.14,1546.96,1547.41,1547.57,1547.51,1547.28,1546.93,1546.48,1545.94,1545.35,1544.71,1544.04,1543.33,1542.6,1541.86,1541.1,1540.33,1539.56,1538.78,1538.0,1537.22,1536.44,1535.69,1534.94,1534.19,1533.44,1713.82,1793.58,1528.95,789.13,1339.47,1646.81,1750.85,1760.01,1784.86,1810.38,1821.47,1239.12,1666.55,1809.29,1837.87,1866.17,1870.16,1879.51,1899.01,1887.3,1868.07,1888.17,1883.54,1897.2,1814.69,1735.33,1851.5,1882.6,1883.13,1889.12,1882.76,1896.07,1899.02,1915.58,1910.09,1912.79,1915.41,1918.08,1822.01,1708.31,1672.26,1650.21,1776.32,1868.49,1892.5,1909.02,1918.82,1321.97,1537.19,1587.78,1600.78,1603.23,1602.65,1601.17,1599.47,1597.77,1596.14,1594.6,1593.16,1591.79,1590.51,1589.3,1588.14,1587.03,1585.97,1584.95,1583.96,1583.01,1582.08,1581.18,1580.3,1579.43,1578.59,1577.76,1576.95,1576.15,1575.37,1574.6,1573.83,1573.08,1572.34,1571.61,1570.89,1570.18,1569.48,1568.8,1568.13,1567.47,1566.81,1566.15,1565.51,1564.87,1564.23,1563.6,1562.97,1562.35,1561.74,1561.12,1560.52,1559.91,1559.32,1558.72,1558.13,1557.54,1556.96,1556.38,1555.8,1555.23,1554.66,1554.09,1482.85,1484.13,1486.49,1488.64,1490.62,1492.46,1495.95,1508.62,1701.54,1776.79,1683.38,1610.96,1584.25,1571.48,1564.15,1559.4,1564.39,1556.97,1553.32,1551.06,1549.43,1557.85,1551.03,1548.07],"Tmeas":[1560.0,1560.1,1560.21,1560.31,1560.41,1560.52,1560.62,1560.72,1560.83,1560.93,1561.03,1561.14,1561.24,1561.34,1561.44,1561.55,1561.65,1561.75,1561.86,1561.96,1562.06,1562.17,1562.27,1562.37,1562.48,1562.58,1562.68,1562.79,1562.89,1562.99,1563.0,1564.31,1564.99,1565.68,1566.36,1567.04,1567.72,1568.4,1569.08,1569.76,1570.44,1571.12,1571.8,1572.48,1573.16,1573.84,1574.52,1575.2,1575.88,1576.56,1577.24,1577.92,1578.6,1579.28,1579.96,1580.64,1581.0,1584.31,1586.56,1588.82,1591.07,1593.33,1595.58,1597.84,1600.09,1602.35,1604.6,1606.86,1609.11,1611.37,1613.62,1614.0,1612.17,1611.17,1610.17,1609.18,1608.18,1607.18,1606.18,1605.18,1604.19,1603.19,1602.19,1601.19,1600.19,1599.2,1598.2,1597.2,1596.2,1595.2,1594.21,1593.21,1592.21,1591.21,1590.21,1589.22,1588.22,1587.22,1586.22,1585.22,1584.23,1583.23,1582.23,1581.23,1580.23,1579.24,1578.24,1577.24,1576.24,1575.24,1574.25,1573.25,1572.25,1571.25,1570.25,1569.26,1568.26,1567.26,1566.26,1565.26,1564.27,1564.0,1563.56,1563.31,1563.06,1562.81,1562.56,1562.31,1562.05,1561.8,1561.55,1561.3,1561.05,1560.8,1560.55,1560.29,1560.04,1559.79,1559.54,1559.29,1559.04,1558.78,1558.53,1558.28,1558.03,1557.78,1557.53,1557.27,1557.02,1556.77,1556.52,1556.27,1556.02,1556.0,1556.0,1556.0,1556.0,1556.0,1556.0,1556.0,1556.0,1556.0,1556.0,1556.0,1556.0],"TIn":[1078.5,1150.38,1206.22,1249.94,1284.46,1311.93,1334.0,1351.89,1366.52,1378.59,1388.64,1397.08,1404.23,1410.33,1415.59,1420.15,1424.13,1427.64,1430.73,1433.49,1435.95,1438.16,1440.16,1441.97,1443.61,1445.1,1446.47,1447.73,1448.89,1449.96,1450.94,1452.07,1453.38,1454.51,1454.64,1454.63,1454.87,1455.4,1456.16,1457.13,1458.28,1459.58,1460.31,1461.09,1462.09,1463.27,1464.63,1466.12,1467.73,1469.45,1471.23,1473.05,1474.9,1476.79,1478.71,1480.55,1482.25,1483.97,1485.73,1487.52,1489.35,1491.19,1493.06,1494.94,1496.86,1498.8,1500.74,1502.7,1504.67,1506.53,1508.17,1509.6,1510.84,1512.08,1513.41,1514.85,1516.39,1518.0,1518.98,1519.72,1520.32,1520.74,1521.11,1521.54,1521.9,1522.21,1522.47,1522.69,1522.87,1523.02,1523.15,1523.25,1523.32,1523.37,1523.41,1523.42,1523.42,1523.41,1523.38,1523.34,1523.28,1523.21,1523.14,1523.05,1522.95,1522.84,1522.72,1522.6,1522.46,1522.32,1522.17,1522.02,1521.85,1521.68,1521.51,1521.33,1521.15,1520.96,1520.77,1520.57,1520.37,1520.17,1519.96,1519.75,1519.53,1519.3,1519.08,1518.85,1518.61,1518.37,1518.13,1517.88,1517.63,1517.37,1517.11,1516.85,1516.58,1516.32,1516.04,1515.77,1515.49,1515.13,1514.7,1514.22,1513.72,1513.18,1512.63,1512.08,1511.53,1511.21,1511.15,1511.2,1511.23,1511.23,1511.18,1511.1,1510.98,1510.84,1510.68,1510.49,1510.28,1510.06,1509.83,1509.59,1508.99],"TOut":[287.21,297.56,307.48,316.91,325.86,334.37,342.47,350.19,357.54,364.56,371.26,377.66,383.79,389.66,395.28,400.68,405.87,410.86,415.66,420.28,424.74,429.05,433.21,437.24,441.15,444.93,448.6,452.17,455.64,459.02,462.31,465.52,468.65,471.71,474.71,477.64,480.5,483.31,486.07,488.77,491.43,494.03,496.6,499.12,501.6,504.04,506.44,508.81,511.14,513.44,515.71,517.95,520.16,522.34,524.49,526.62,528.72,530.79,532.84,534.87,536.87,538.85,540.81,542.74,544.66,546.55,548.43,550.28,552.12,553.93,555.73,557.51,559.27,561.02,562.74,564.45,566.15,567.82,569.48,571.13,572.76,574.37,575.97,577.55,579.12,580.68,582.22,583.74,585.25,586.75,588.23,589.7,591.16,592.6,594.03,595.45,596.85,598.24,599.61,600.97,602.32,603.66,604.98,606.29,607.59,608.87,610.15,611.4,612.65,613.88,615.1,616.31,617.5,618.69,619.86,621.01,622.16,623.29,624.41,625.51,626.61,627.69,628.76,629.81,630.86,631.89,632.91,633.92,634.91,635.9,636.87,637.83,638.78,639.71,640.64,641.55,642.45,643.34,644.22,645.08,645.94,646.78,647.61,648.43,649.24,650.04,650.83,651.61,652.38,653.13,653.88,654.61,655.34,656.05,656.76,657.45,658.13,658.81,659.47,660.12,660.77,661.4,662.03,662.64,663.25],"y":[0.00117,0.00284,0.00337,0.0037,0.00395,0.00414,0.0043,0.00444,0.00456,0.00467,0.00476,0.00485,0.00493,0.005,0.00507,0.00513,0.00518,0.00524,0.00529,0.00533,0.00537,0.00541,0.00545,0.00548,0.00551,0.00554,0.00556,0.00558,0.0056,0.00809,0.01053,0.00652,0.0013,0.0,0.0,0.0,0.0],"T":[[1406.8,1364.7,1319.0,1085.8,889.9,765.0,640.6],[1494.8,1440.5,1386.8,1133.8,923.9,791.1,658.7],[1502.3,1447.2,1393.0,1138.3,927.2,793.6,660.4],[1505.8,1450.3,1395.8,1140.4,928.7,794.8,661.3],[1508.0,1452.3,1397.7,1142.0,930.0,795.9,662.3],[1509.0,1453.2,1398.6,1143.1,931.2,797.0,663.2],[1509.4,1453.7,1399.2,1144.1,932.4,798.1,664.3],[1509.8,1454.2,1399.9,1145.2,933.6,799.3,665.4],[1510.0,1454.6,1400.6,1146.2,934.8,800.4,666.5],[1510.2,1455.1,1401.2,1147.2,935.9,801.4,667.4],[1510.3,1455.5,1401.7,1148.0,936.9,802.4,668.3],[1510.5,1455.8,1402.2,1148.8,937.8,803.2,669.1],[1510.6,1456.1,1402.6,1149.4,938.5,803.9,669.8],[1510.8,1456.4,1403.0,1150.0,939.2,804.5,670.4],[1510.9,1456.6,1403.3,1150.5,939.7,805.1,670.8],[1510.9,1456.8,1403.5,1150.9,940.2,805.5,671.3],[1511.0,1457.0,1403.8,1151.2,940.6,805.9,671.6],[1511.1,1457.1,1403.9,1151.5,940.9,806.2,671.9],[1511.1,1457.2,1404.1,1151.8,941.2,806.5,672.1],[1511.2,1457.3,1404.2,1152.0,941.5,806.7,672.4],[1511.2,1457.4,1404.4,1152.2,941.7,806.9,672.5],[1511.2,1457.5,1404.5,1152.3,941.8,807.0,672.7],[1511.3,1457.5,1404.5,1152.5,942.0,807.2,672.8],[1511.3,1457.6,1404.6,1152.6,942.1,807.3,672.9],[1511.3,1457.6,1404.7,1152.7,942.2,807.4,673.0],[1511.3,1457.7,1404.7,1152.8,942.3,807.5,673.1],[1511.4,1457.7,1404.8,1152.8,942.4,807.6,673.2],[1511.4,1457.7,1404.8,1152.9,942.5,807.7,673.3],[1511.4,1457.8,1404.9,1153.0,942.6,807.7,673.3],[1511.4,1457.8,1404.9,1153.0,942.6,807.8,673.4],[1468.0,1416.6,1365.7,1124.2,922.2,792.4,663.1],[1528.6,1485.6,1436.1,1188.7,977.5,837.7,698.2],[1536.1,1494.0,1444.1,1193.8,981.0,840.4,700.3],[1536.7,1494.5,1444.6,1194.0,981.0,840.4,700.3],[1535.9,1493.6,1443.5,1193.0,980.1,839.6,699.6],[1533.5,1490.5,1440.2,1190.1,977.6,837.5,697.7],[1521.0,1475.5,1425.0,1176.5,965.6,827.3,689.4]],"Tb":[292.3,505.9,842.2,1033.2,1084.5,1116.2,1157.4]};
+const NR=37,LIM=0.75,Y1=D.y.slice(0,NR),ymax=Math.max(...Y1),wr=Y1.indexOf(ymax)+1;
+let N=30,rowSel=30,mode="mat";
+const $=id=>document.getElementById(id);
+const LAY=[["MgO-C 마모 벽돌 1 (안쪽)",57,"#4a4845"],["MgO-C 마모 벽돌 2",57,"#4a4845"],["MgO-C 마모 벽돌 3",57,"#4a4845"],["돌로마이트",20,"#c9a66b"],["알루미나",65,"#e6e1d3"],["단열재",5,"#e8c84a"],["철피",30,"#888780"]];
+const OFF=[0,57,114,171,191,256,261];
+function ramp(t){t=Math.max(0,Math.min(1,t));const A=[[59,138,217],[240,180,41],[208,59,59]],s=t<.5?0:1,u=t<.5?t*2:(t-.5)*2;return"rgb("+A[s].map((x,i)=>Math.round(x+(A[s+1][i]-x)*u)).join(",")+")"}
+const colT=T=>ramp((T-200)/1300);
+const E=()=>Y1.map(v=>Math.min(1,v*N));
+const HS=132300/((8320-0.835*D.Tsteel[0])*Math.PI*1.45*1.45);
+const S=0.085,K=3,Y0=330,AX=22,DXP=3500*S/NR,XIN=AX+1450*S,SC=S*K;
+function lining(e){
+let s=`<svg viewBox="0 0 250 420" width="100%" role="img" aria-label="래들 절반 단면 도면. 벽과 바닥이 MgO-C 벽돌 3겹, 돌로마이트, 알루미나, 단열재, 철피의 7층으로 이루어져 있고, 슬래그 라인 근처 행이 가장 많이 침식되어 있어요.">`;
+const yS=Y0-HS*1000*S;
+s+=`<rect x="${AX}" y="${yS}" width="${XIN-AX}" height="${Y0-yS}" fill="#e8923a" opacity=".3"/><rect x="${AX}" y="${yS-1.5}" width="${XIN-AX}" height="3" fill="#6f8f6a"/>`;
+LAY.forEach((l,j)=>{const f=mode==="temp"?colT(D.Tb[6-j]):mode==="ero"?(j<3?"#9a9890":"#c3c2b7"):l[2];s+=`<rect x="${AX}" y="${Y0+OFF[j]*SC}" width="${XIN+291*SC-AX}" height="${l[1]*SC+0.3}" fill="${f}"/>`});
+for(let i=0;i<NR;i++){const y=Y0-(i+1)*DXP,h=DXP+0.3,ei=e[i];
+for(let j=0;j<3;j++){const x=XIN+(ei*171+j*57*(1-ei))*SC,w=57*(1-ei)*SC;if(w<=0.05)continue;
+const f=mode==="temp"?colT(D.T[i][j]):mode==="ero"?ramp(ei/LIM):"#4a4845";s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}"/>`}
+for(let j=3;j<7;j++){const f=mode==="temp"?colT(D.T[i][j]):mode==="ero"?"#c3c2b7":LAY[j][2];s+=`<rect x="${XIN+OFF[j]*SC}" y="${y}" width="${LAY[j][1]*SC}" height="${h}" fill="${f}"/>`}}
+s+=`<rect x="${XIN}" y="${Y0-NR*DXP}" width="${171*SC}" height="${NR*DXP}" fill="none" stroke="#898781" stroke-width=".6" stroke-dasharray="3 2"/>`;
+s+=`<rect x="${AX}" y="${Y0}" width="11" height="${171*SC}" fill="#222"/>`;
+s+=`<line x1="${AX}" x2="${AX}" y1="${Y0-NR*DXP-8}" y2="${Y0}" stroke="#898781" stroke-dasharray="4 3"/>`;
+s+=`<rect x="${XIN-1}" y="${Y0-rowSel*DXP}" width="${291*SC+2}" height="${DXP}" fill="none" stroke="#d03b3b" stroke-width="1.2"/>`;
+const t=(x,y,x2)=>`<text x="${x}" y="${y}" font-size="9" fill="#898781">${x2}</text>`;
+s+=t(AX+5,yS+14,"용강 132 t")+t(AX+5,yS-5,"슬래그 (약 2 cm)")+t(AX+14,Y0-5,"플러그(중심)")+t(AX+5,Y0+171*SC+14,"바닥 (벽과 같은 7층)")+`</svg>`;
+$("lin").innerHTML=s;
+let g="";
+if(mode==="mat")g='<div class="chips">'+[["#4a4845","MgO-C 마모 벽돌 ×3"],["#c9a66b","돌로마이트"],["#e6e1d3","알루미나"],["#e8c84a","단열재"],["#888780","철피"]].map(a=>`<span><i style="background:${a[0]}"></i>${a[1]}</span>`).join("")+"</div>";
+else g=`<div class="bar" style="background:linear-gradient(90deg,#3b8ad9,#f0b429,#d03b3b)"></div><div class="lg"><span>${mode==="temp"?"200 °C":"0%"}</span><span>${mode==="temp"?"히트 종료 시점 온도":"마모 벽돌 침식률"}</span><span>${mode==="temp"?"1500 °C":"75% 한계"}</span></div>`;
+$("lgd").innerHTML=g}
+function xsec(e){const i=rowSel-1,ei=e[i],k=0.8,x0=8;
+let s=`<svg viewBox="0 0 250 64" width="100%" role="img" aria-label="${rowSel}번 행의 벽 단면: 마모 벽돌 3겹, 돌로마이트, 알루미나, 단열재, 철피. 마모 벽돌의 ${Math.round(ei*100)}%가 침식되었어요.">`;
+s+=`<rect x="${x0}" y="6" width="${171*k}" height="38" fill="none" stroke="#d03b3b" stroke-dasharray="4 3"/>`;
+for(let j=0;j<3;j++){const x=x0+(ei*171+j*57*(1-ei))*k,w=57*(1-ei)*k;if(w>0)s+=`<rect x="${x}" y="6" width="${w}" height="38" fill="#4a4845" stroke="#898781" stroke-width=".5"/>`}
+for(let j=3;j<7;j++)s+=`<rect x="${x0+OFF[j]*k}" y="6" width="${LAY[j][1]*k}" height="38" fill="${LAY[j][2]}"/>`;
+s+=`<text x="${x0}" y="58" font-size="9" fill="#898781">뜨거운 면(쇳물 쪽)</text><text x="${x0+171*k+4}" y="58" font-size="9" fill="#898781">→ 바깥쪽</text></svg>`;
+$("xs").innerHTML=s;
+const z=rowSel<wr-1?"쇳물과 닿는 벽":rowSel<=wr+1?"슬래그 라인 근처":"쇳물 위쪽 (침식 계산 없음)";
+$("xt").textContent=`${rowSel}번 행: ${z}. 마모 벽돌 ${(ei*100).toFixed(0)}% 침식 (${(ei*171).toFixed(0)} mm), ${((1-ei)*100).toFixed(0)}% 남음.`;
+let h="<table><tr><th>층</th><th>현재 두께 mm</th><th>온도 °C</th></tr>";
+LAY.forEach((l,j)=>{h+=`<tr><td>${l[0]}</td><td>${(j<3?l[1]*(1-ei):l[1]).toFixed(0)}</td><td>${Math.round(D.T[i][j])}</td></tr>`});
+$("xtb").innerHTML=h+"</table>"}
+const el=$("v3"),HH=3.5,RB=1.45;
 const ren=new THREE.WebGLRenderer({antialias:true,alpha:true});
 ren.setPixelRatio(window.devicePixelRatio||1);el.appendChild(ren.domElement);
 const scene=new THREE.Scene(),cam=new THREE.PerspectiveCamera(38,1,0.1,100);
-cam.position.set(0,5.4,10.5);cam.lookAt(0,2,0);
+cam.position.set(0,5,10);cam.lookAt(0,1.7,0);
 scene.add(new THREE.AmbientLight(0xffffff,0.75));
 const dl=new THREE.DirectionalLight(0xffffff,0.6);dl.position.set(4,8,6);scene.add(dl);
 const grp=new THREE.Group();grp.rotation.y=Math.PI/4;scene.add(grp);
-const prof=(d)=>{const p=[];for(let j=0;j<=NR;j++){const y=HH*j/NR;p.push(new THREE.Vector2(rad(y)+d,y))}return p};
+const prof=d=>{const p=[];for(let j=0;j<=NR;j++)p.push(new THREE.Vector2(RB+d,HH*j/NR));return p};
 const wallG=new THREE.LatheGeometry(prof(0),56,0,Math.PI*1.5);
 wallG.setAttribute("color",new THREE.BufferAttribute(new Float32Array(wallG.attributes.position.count*3),3));
 grp.add(new THREE.Mesh(wallG,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})));
-grp.add(new THREE.Mesh(new THREE.LatheGeometry(prof(0.3),56,0,Math.PI*1.5),new THREE.MeshLambertMaterial({color:0x888780,transparent:true,opacity:0.3,side:THREE.DoubleSide})));
+grp.add(new THREE.Mesh(new THREE.LatheGeometry(prof(0.29),56,0,Math.PI*1.5),new THREE.MeshLambertMaterial({color:0x888780,transparent:true,opacity:0.3,side:THREE.DoubleSide})));
 const bot=new THREE.Mesh(new THREE.CircleGeometry(RB,56,0,Math.PI*1.5),new THREE.MeshLambertMaterial({color:0x7a5a3a,side:THREE.DoubleSide}));
 bot.rotation.x=-Math.PI/2;grp.add(bot);
 const plug=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,0.06,24),new THREE.MeshLambertMaterial({color:0x333333}));plug.position.y=0.04;grp.add(plug);
-let liq=[];
-function setLiq(rs){liq.forEach(m=>grp.remove(m));liq=[];
-const y1=HH*(rs-1)/NR,y2=HH*(rs+2)/NR;
-const mk=(ya,yb,c,o)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(rad(yb)-0.03,rad(ya)-0.03,yb-ya,56,1,false,0,Math.PI*1.5),new THREE.MeshLambertMaterial({color:c,transparent:true,opacity:o,side:THREE.DoubleSide}));m.position.y=(ya+yb)/2;grp.add(m);liq.push(m)};
-mk(0.02,y1,0xe8923a,0.5);mk(y1,y2,0x6f8f6a,0.8)}
-function paint(y){const c=wallG.attributes.color,n=NR+1;
-for(let k=0;k<c.count;k++){const j=k%n,r=Math.max(1,Math.min(NR,j)),cc=col(y[r-1]);c.setXYZ(k,cc.r,cc.g,cc.b)}
-c.needsUpdate=true}
+const mk=(ya,yb,c,o)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(RB-0.03,RB-0.03,yb-ya,56,1,false,0,Math.PI*1.5),new THREE.MeshLambertMaterial({color:c,transparent:true,opacity:o,side:THREE.DoubleSide}));m.position.y=(ya+yb)/2;grp.add(m)};
+mk(0.02,HS,0xe8923a,0.5);mk(HS,HS+0.04,0x6f8f6a,0.85);
+function paint(e){const c=wallG.attributes.color,n=NR+1,cl=e.map(v=>new THREE.Color(ramp(v/LIM)));
+for(let k=0;k<c.count;k++){const r=Math.max(1,Math.min(NR,k%n)),q=cl[r-1];c.setXYZ(k,q.r,q.g,q.b)}c.needsUpdate=true}
 function resize(){const w=el.clientWidth||340;ren.setSize(w,320);cam.aspect=w/320;cam.updateProjectionMatrix();ren.render(scene,cam)}
 window.addEventListener("resize",resize);
 let drag=false,px=0;
 el.addEventListener("pointerdown",e=>{drag=true;px=e.clientX;el.style.cursor="grabbing"});
 window.addEventListener("pointerup",()=>{drag=false;el.style.cursor="grab"});
 window.addEventListener("pointermove",e=>{if(!drag)return;grp.rotation.y+=(e.clientX-px)*0.01;px=e.clientX;ren.render(scene,cam)});
-function xsec(r){const e=r.y[rowSel-1],rs=steelRow(),W=120,x0=14;
-const eroded=Math.min(W,e*W);
-let s=`<svg viewBox="0 0 270 118" width="100%" role="img" aria-label="Wall cross-section at brick row ${rowSel}: three MgO-C wear bricks, backup layers and steel shell, with ${Math.round(e*100)} percent of the wear lining eroded.">`;
-s+=`<rect x="${x0}" y="10" width="${eroded}" height="46" fill="none" stroke="#d03b3b" stroke-dasharray="4 3"/>`;
-s+=`<rect x="${x0+eroded}" y="10" width="${W-eroded}" height="46" fill="#4a4845"/>`;
-[40,80].forEach(d=>{s+=`<line x1="${x0+d}" x2="${x0+d}" y1="10" y2="56" stroke="#898781" stroke-width="1"/>`});
-s+=`<rect x="${x0+W}" y="10" width="90" height="46" fill="#d9c9a3"/>`;
-[30,60].forEach(d=>{s+=`<line x1="${x0+W+d}" x2="${x0+W+d}" y1="10" y2="56" stroke="#a89a78"/>`});
-s+=`<rect x="${x0+W+90}" y="10" width="20" height="46" fill="#888780"/>`;
-const t=(x,y,a,c)=>`<text x="${x}" y="${y}" font-size="11" fill="${c||"#898781"}" text-anchor="${a||"start"}">`;
-s+=t(x0,72)+`hot face</text>`+t(x0+60,88,"middle")+`wear lining x3 (MgO-C)</text>`+t(x0+W+45,104,"middle")+`backup / insulation</text>`+t(x0+W+100,72,"middle")+`shell</text>`;
-s+=`</svg>`;
-document.getElementById("xs").innerHTML=s;
-document.getElementById("xt").innerHTML=`Row ${rowSel}: ${zoneOf(rowSel,rs)}. Eroded ${(e*100).toFixed(0)}% of the wear lining, ${((1-e)*100).toFixed(0)}% left.`}
 const css=getComputedStyle(document.documentElement);
 const tc=()=>css.getPropertyValue("--mut").trim(),gc=()=>css.getPropertyValue("--line").trim();
-const base=(extra)=>({responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{labels:{color:tc(),boxWidth:10,font:{size:11}}}},scales:Object.assign({x:{ticks:{color:tc(),maxTicksLimit:8},grid:{display:false}},y:{ticks:{color:tc()},grid:{color:gc()}}},extra||{})});
-const ln=(l,c,d)=>({label:l,borderColor:c,borderWidth:2,pointRadius:0,tension:.2,borderDash:d||[],data:[]});
-const c1=new Chart("c1",{type:"line",data:{labels:[],datasets:[ln("Steel (model)","#2a78d6"),ln("Slag (model)","#eb6834",[6,3]),{label:"Measured",type:"line",showLine:false,pointRadius:3,backgroundColor:"#898781",borderColor:"#898781",data:[]}]},options:base({y:{min:1500,max:1660,ticks:{color:tc()},grid:{color:gc()}}})});
-const c2=new Chart("c2",{type:"line",data:{labels:[],datasets:[ln("qslagV","#eb6834"),ln("qsteelV","#2a78d6"),ln("qwallV","#1baf7a"),ln("qbottomV","#6250d6")]},options:base()});
-const c3=new Chart("c3",{data:{labels:[...Array(NR)].map((_,i)=>String(i+1)),datasets:[{type:"bar",label:"erosion",data:[],backgroundColor:[],borderRadius:2},{type:"line",label:"Limit 80%",data:Array(NR).fill(80),borderColor:"#898781",borderDash:[5,4],borderWidth:1.5,pointRadius:0}]},options:base({x:{title:{display:true,text:"brick row",color:tc()},ticks:{color:tc(),maxTicksLimit:10},grid:{display:false}},y:{min:0,max:100,ticks:{color:tc(),callback:x=>x+"%"},grid:{color:gc()}}})});
-let last=null;
-function run(){const r=sim(),y=r.y,rs=steelRow();last=r;let w=0;y.forEach((x,i)=>{if(x>y[w])w=i});
-const left=Math.max(0,(LIM-y[w])/r.pr[w]);
-const $=id=>document.getElementById(id);$("k1").textContent="#"+(w+1);$("k2").textContent=Math.round(y[w]*100)+"%";$("k3").textContent=Math.round(left);$("k4").textContent=Math.round(r.S[r.S.length-1])+" °C";
-const after=Math.max(...y.map((x,i)=>x+r.pr[i])),st=document.getElementById("st");
-if(y[w]>=LIM){st.style.cssText="background:var(--bad);color:var(--badt)";st.textContent="Critical wear: do not use this ladle for another heat."}
-else if(after>=LIM){st.style.cssText="background:var(--warn);color:var(--warnt)";st.textContent="Next heat would push the worst row past the limit: plan relining or repair."}
-else{st.style.cssText="background:var(--ok);color:var(--okt)";st.textContent="Ladle OK for the next heat (max erosion after it: "+Math.round(after*100)+"%)."}
-c1.data.labels=r.m;c1.data.datasets[0].data=r.S;c1.data.datasets[1].data=r.G;c1.data.datasets[2].data=r.M;c1.update();
-c2.data.labels=r.m;[r.qs,r.qg,r.qw,r.qb].forEach((d,i)=>c2.data.datasets[i].data=d);c2.update();
-c3.data.datasets[0].data=y.map(x=>Math.round(x*100));
-c3.data.datasets[0].backgroundColor=y.map((_,i)=>i+1<rs?"#2a78d6":i+1<=rs+2?"#eb6834":"#9aa7b8");c3.update();
-setLiq(rs);paint(y);xsec(r);resize()}
-run();
+const base=x=>({responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{labels:{color:tc(),boxWidth:10,font:{size:11}}}},scales:Object.assign({x:{ticks:{color:tc(),maxTicksLimit:8},grid:{display:false},title:{display:true,text:"분",color:tc()}},y:{ticks:{color:tc()},grid:{color:gc()}}},x||{})});
+const ln=(l,c,d,data)=>({label:l,borderColor:c,borderWidth:2,pointRadius:0,tension:.2,borderDash:d||[],data});
+new Chart("c1",{type:"line",data:{labels:D.t,datasets:[ln("강철 (모델)","#2a78d6",0,D.Tsteel),ln("슬래그 (모델)","#eb6834",[6,3],D.Tslag),{label:"실측",type:"line",showLine:false,pointRadius:2.5,backgroundColor:"#898781",borderColor:"#898781",data:D.Tmeas}]},options:base()});
+new Chart("c2",{type:"line",data:{labels:D.t,datasets:[ln("내면","#eb6834",0,D.TIn),ln("외면(철피 쪽)","#2a78d6",0,D.TOut)]},options:base()});
+const c3=new Chart("c3",{data:{labels:[...Array(NR)].map((_,i)=>String(i+1)),datasets:[{type:"bar",label:"침식률",data:[],backgroundColor:[],borderRadius:2},{type:"line",label:"한계 75%",data:Array(NR).fill(75),borderColor:"#898781",borderDash:[5,4],borderWidth:1.5,pointRadius:0}]},options:base({x:{title:{display:true,text:"벽돌 행",color:tc()},ticks:{color:tc(),maxTicksLimit:10},grid:{display:false}},y:{min:0,max:100,ticks:{color:tc(),callback:v=>v+"%"},grid:{color:gc()}}})});
+let se=0,sn=0;D.Tsteel.forEach((v,i)=>{if(D.Tmeas[i]>100){se+=(v-D.Tmeas[i])**2;sn++}});
+$("k5").textContent=Math.round(Math.sqrt(se/sn))+" °C";
+$("k4").textContent=(ymax*100).toFixed(2)+"%";
+function update(){const e=E(),em=Math.max(...e),st=$("st");
+$("k1").textContent="#"+wr;$("k2").textContent=Math.round(em*100)+"%";$("k3").textContent=Math.max(0,Math.round((LIM-em)/ymax));
+if(em>=LIM){st.style.cssText="background:var(--bad);color:var(--badt)";st.textContent="마모 한계 도달: 이 래들은 다음 히트에 쓰면 안 돼요 (코드 기준 75%)."}
+else if(em+ymax>=LIM){st.style.cssText="background:var(--warn);color:var(--warnt)";st.textContent="다음 히트에 한계에 닿아요: 보수나 재축조를 준비하세요."}
+else{st.style.cssText="background:var(--ok);color:var(--okt)";st.textContent="다음 히트까지 사용 가능해요 (다음 히트 후 최대 침식 "+Math.round((em+ymax)*100)+"%)."}
+c3.data.datasets[0].data=e.map(v=>Math.round(v*1000)/10);
+c3.data.datasets[0].backgroundColor=e.map((_,i)=>i+1<wr-1?"#2a78d6":i+1<=wr+1?"#eb6834":"#9aa7b8");c3.update();
+lining(e);xsec(e);paint(e);resize()}
+$("n").oninput=x=>{N=+x.target.value;$("o_n").textContent=N;update()};
+$("row").oninput=x=>{rowSel=+x.target.value;$("o_row").textContent=rowSel;update()};
+document.querySelectorAll("#seg button").forEach(b=>b.onclick=()=>{mode=b.dataset.m;document.querySelectorAll("#seg button").forEach(c=>c.classList.toggle("on",c===b));update()});
+update();
+/* ===== 다른 설비 탭: 예시 구성 (EQS를 실제 설비 값으로 바꿔 쓰세요) ===== */
+const EQS={
+kiln:{name:"로타리 킬른",o:"h",s:0.12,max:36,def:12,
+sub:"시멘트 로타리 킬른 5개 구역의 라이닝 구성 예시 · 실제 설비 데이터 아님",
+note:"원료는 왼쪽 입구에서 오른쪽 출구(버너 쪽)로 이동해요. 소성대가 캠페인 수명을 좌우해요. 길이와 두께는 예시이고, 수명은 자료의 일반 범위(소성대 8~18개월 등)를 바탕으로 가정했어요.",
+zones:[
+{n:"입구/예열대",L:6,T:"600–900 °C",mat:"고알루미나·내화점토 벽돌 또는 캐스터블",c:"#d9c9a3",w:200,ins:30,sh:30,life:36,mech:"원료 마찰 마모, 씰 손상 시 열가스 우회"},
+{n:"상부 전이·안전대",L:14,T:"900–1200 °C",mat:"70% 알루미나 또는 스피넬 벽돌",c:"#c9b38a",w:200,ins:20,sh:30,life:18,mech:"알칼리 염(K₂O·Na₂O·SO₃·Cl) 침투, 열응력"},
+{n:"소성대",L:18,T:"1350–1500 °C",mat:"마그네시아-스피넬 또는 돌로마 벽돌",c:"#4a4845",w:250,ins:0,sh:40,life:12,mech:"클링커 액상의 열화학 침식, 코팅 탈락, 열충격"},
+{n:"하부 전이대",L:12,T:"1200–1400 °C",mat:"마그네시아-스피넬 또는 70% 알루미나 벽돌",c:"#6d6a64",w:220,ins:0,sh:35,life:15,mech:"클링커 덩어리 충격, 열 사이클, 코팅 불안정"},
+{n:"출구/노즈링",L:10,T:"약 900–1300 °C",mat:"SiC 포함 고알루미나 캐스터블",c:"#b8bfc7",w:200,ins:0,sh:35,life:24,mech:"클링커 마모, 열충격, 냉각기 공기 유입"}]},
+rfcc:{name:"RFCC 재생기",o:"v",s:0.25,max:96,def:36,
+sub:"RFCC 재생기(Regenerator) 5개 구역의 라이닝 구성 예시 · 실제 설비 데이터 아님",
+note:"아래에서 위로 공기와 촉매가 올라가요. 모양은 원통으로 단순화했어요. 반응기와 라이저도 같은 방식으로 추가할 수 있어요. 수명은 자료에 근거가 없어 모두 가정이에요.",
+zones:[
+{n:"에어그리드·하부",L:4,T:"650–720 °C",mat:"침식 저항 캐스터블 + 단열 캐스터블 (이중 라이닝)",c:"#d9c9a3",w:50,ins:75,sh:25,life:60,mech:"공기 분사로 가속된 촉매 입자의 고속 침식"},
+{n:"덴스 베드",L:10,T:"680–730 °C",mat:"침식 저항 캐스터블 + 단열 캐스터블",c:"#c9b38a",w:50,ins:75,sh:25,life:72,mech:"유동 촉매 입자 마모, 열 사이클"},
+{n:"희박상(프리보드)",L:8,T:"700–760 °C",mat:"침식·단열 겸용 캐스터블 (헥스메시 앵커)",c:"#b8bfc7",w:100,ins:0,sh:25,life:84,mech:"촉매 입자 충돌, 후연소 시 과열"},
+{n:"사이클론 (내부)",L:6,T:"700–760 °C",mat:"침식 저항 캐스터블, 비단열 얇은 헥스메시 라이닝",c:"#4a4845",w:25,ins:0,sh:10,life:36,mech:"고속 선회 촉매로 가장 심한 침식, 헥스메시 노출"},
+{n:"상부 헤드·출구",L:5,T:"720–780 °C",mat:"단열 캐스터블 + 침식 저항 캐스터블",c:"#6d6a64",w:75,ins:50,sh:25,life:96,mech:"열 사이클, 고온 가스 유동"}]},
+inc:{name:"소각로",o:"h",s:0.12,max:36,def:12,
+sub:"로타리 킬른식 소각로와 2차 연소실 5개 구역의 라이닝 구성 예시 · 실제 설비 데이터 아님",
+note:"폐기물은 왼쪽에서 들어와 오른쪽으로 이동하고, 배가스는 2차 연소실로 가요. 자료에 따르면 소각로 킬른 벽돌은 보통 1~3년마다 일부 또는 전체를 교체하고, 코팅이 덜 붙는 입구·출구가 더 취약해요.",
+zones:[
+{n:"입구/투입부",L:3,T:"약 1000 °C",mat:"보크사이트·고알루미나 벽돌",c:"#d9c9a3",w:230,ins:30,sh:30,life:18,mech:"바텀 애시 코팅이 덜 붙어 마모에 취약, 열충격"},
+{n:"연소대",L:9,T:"1000–1200 °C",mat:"알루미나-크롬 또는 보크사이트 벽돌",c:"#4a4845",w:250,ins:30,sh:30,life:24,mech:"용융 바텀 애시·알칼리 침투, 열충격, 회전 응력"},
+{n:"출구/배출부",L:3,T:"약 1000 °C",mat:"고알루미나·알루미나-크롬 벽돌",c:"#6d6a64",w:230,ins:30,sh:30,life:18,mech:"용융 바텀 애시 유출 마모, 코팅 불균일"},
+{n:"2차 연소실 하부",L:6,T:"900–1100 °C",mat:"고알루미나 캐스터블 또는 벽돌",c:"#c9b38a",w:200,ins:50,sh:20,life:36,mech:"비산회 슬래깅, 알칼리·염소 부식"},
+{n:"2차 연소실 상부·덕트",L:6,T:"900–1100 °C",mat:"저시멘트 캐스터블",c:"#b8bfc7",w:150,ins:50,sh:20,life:48,mech:"열 사이클, 비산회 침식"}]}
+};
+let qKey="kiln",qM=12,qR=0.4,qMode="mat",qZ=2,qC1=null,qC2=null;
+const wfz=(z,m)=>Math.min(1,m*0.6/z.life);
+function qDraw(Q){const Z=Q.zones,tot=Z.reduce((a,z)=>a+z.L,0),h=Q.o==="h",C=h?75:110,B=h?22:24,s=Q.s,u=320/tot,W=h?360:220,H=h?150:360;
+const R=(p0,p1,o0,o1,f,x)=>{x=x||"";if(o1-o0<=0.05)return"";return h?`<rect x="${p0}" y="${C-o1}" width="${p1-p0}" height="${o1-o0}" fill="${f}" ${x}/><rect x="${p0}" y="${C+o0}" width="${p1-p0}" height="${o1-o0}" fill="${f}" ${x}/>`:`<rect x="${C-o1}" y="${p0}" width="${o1-o0}" height="${p1-p0}" fill="${f}" ${x}/><rect x="${C+o0}" y="${p0}" width="${o1-o0}" height="${p1-p0}" fill="${f}" ${x}/>`};
+let sv=`<svg viewBox="0 0 ${W} ${H}" width="${h?"100%":"75%"}" style="display:block;margin:0 auto" role="img" aria-label="${Q.name}의 구역별 내화물 단면 도면. ${Z.length}개 구역마다 라이닝 재질과 두께가 다르고, 마모는 안쪽 면부터 진행돼요.">`;
+sv+=h?`<rect x="14" y="${C-B}" width="332" height="${2*B}" fill="#e8923a" opacity=".16"/>`:`<rect x="${C-B}" y="20" width="${2*B}" height="320" fill="#e8923a" opacity=".16"/>`;
+let cum=0;
+Z.forEach((z,i)=>{const p0=h?14+cum*u:340-(cum+z.L)*u,p1=h?14+(cum+z.L)*u:340-cum*u,e=wfz(z,qM),wp=Math.max(z.w*s,4),ip=z.ins*s,sp=Math.max(z.sh*s,3);
+const f=qMode==="wear"?ramp(e/(1-qR)):z.c;
+sv+=R(p0,p1,B,B+e*wp,"none",'stroke="#d03b3b" stroke-width=".6" stroke-dasharray="2 2"');
+sv+=R(p0,p1,B+e*wp,B+wp,f,"");
+sv+=R(p0,p1,B+wp,B+wp+ip,"#e8c84a","")+R(p0,p1,B+wp+ip,B+wp+ip+sp,"#888780","");
+if(i>0)sv+=h?`<line x1="${p0}" x2="${p0}" y1="${C-B-wp-ip-sp-2}" y2="${C+B+wp+ip+sp+2}" stroke="#898781" stroke-width=".5"/>`:`<line y1="${p1}" y2="${p1}" x1="${C-B-wp-ip-sp-2}" x2="${C+B+wp+ip+sp+2}" stroke="#898781" stroke-width=".5"/>`;
+if(i===qZ)sv+=R(p0,p1,B-3,B+wp+ip+sp+3,"none",'stroke="#d03b3b" stroke-width="1.4"');
+const mid=(p0+p1)/2;sv+=h?`<text x="${mid}" y="11" font-size="10" text-anchor="middle" fill="#898781">${i+1}</text>`:`<text x="12" y="${mid+3}" font-size="10" text-anchor="middle" fill="#898781">${i+1}</text>`;
+cum+=z.L});
+sv+=h?`<text x="14" y="${H-5}" font-size="9" fill="#898781">${Q.flow||"공정 흐름 →"}  (위·아래 벽은 같은 구성의 단면)</text>`:`<text x="${W/2}" y="${H-3}" font-size="9" text-anchor="middle" fill="#898781">${Q.flow||"↑ 흐름"} (양쪽 벽은 같은 구성)</text>`;
+$("e_dwg").innerHTML=sv+"</svg>";
+$("e_leg").innerHTML=qMode==="wear"?`<div class="bar" style="background:linear-gradient(90deg,#3b8ad9,#f0b429,#d03b3b)"></div><div class="lg"><span>새 라이닝</span><span>마모 진행</span><span>교체 기준 ${Math.round(qR*100)}%</span></div>`:'<div class="chips">'+Z.map((z,i)=>`<span><i style="background:${z.c}"></i>${i+1} ${z.n}</span>`).join("")+'<span><i style="background:#e8c84a"></i>단열층</span><span><i style="background:#888780"></i>철피</span></div>'}
+function qXs(Q){const z=Q.zones[qZ],e=wfz(z,qM),tot=z.w+z.ins+z.sh,k=Math.min(Q.kx||0.7,215/tot),x0=8;
+let s=`<svg viewBox="0 0 250 62" width="100%" role="img" aria-label="${z.n} 벽 단면: 작업 라이닝 ${z.w} mm 중 ${Math.round(e*100)}%가 마모되었어요.">`;
+s+=`<rect x="${x0}" y="6" width="${z.w*k}" height="36" fill="none" stroke="#d03b3b" stroke-dasharray="4 3"/>`;
+s+=`<rect x="${x0+e*z.w*k}" y="6" width="${(1-e)*z.w*k}" height="36" fill="${z.c}" stroke="#898781" stroke-width=".5"/>`;
+if(z.ins)s+=`<rect x="${x0+z.w*k}" y="6" width="${z.ins*k}" height="36" fill="#e8c84a"/>`;
+s+=`<rect x="${x0+(z.w+z.ins)*k}" y="6" width="${z.sh*k}" height="36" fill="#888780"/><text x="${x0}" y="56" font-size="9" fill="#898781">뜨거운 면(내부) → 바깥쪽</text></svg>`;
+$("e_xs").innerHTML=s;
+const rem=1-e;$("e_xt").textContent=`${qZ+1}. ${z.n} (${z.T}): 작업 라이닝 ${(e*100).toFixed(0)}% 마모, ${(rem*100).toFixed(0)}% 남음 (${(z.w*rem).toFixed(0)} / ${z.w} mm).`;
+$("e_xtb").innerHTML=`<table><tr><th>층</th><th>현재 두께 mm</th><th>재질</th></tr><tr><td>작업 라이닝</td><td>${(z.w*rem).toFixed(0)}</td><td>${z.mat}</td></tr>${z.ins?`<tr><td>단열층</td><td>${z.ins}</td><td>단열 캐스터블·보드</td></tr>`:""}<tr><td>철피</td><td>${z.sh}</td><td>탄소강</td></tr></table>`}
+function qRender(){const Q=EQS[qKey],Z=Q.zones;
+const rem=Z.map(z=>1-wfz(z,qM)),left=Z.map((z,i)=>Math.max(0,(rem[i]-qR)/(0.6/z.life))),wi=left.indexOf(Math.min(...left)),hit=Z.filter((z,i)=>rem[i]<=qR+1e-9);
+$("e1").textContent=Z[wi].n;$("e2").textContent=Math.round(rem[wi]*100)+"%";$("e3").textContent=left[wi]<=0?"도달":Math.round(left[wi])+"개월 후";$("e4").textContent=hit.length+"개";
+const st=$("e_st");
+if(hit.length){st.style.cssText="background:var(--bad);color:var(--badt)";st.textContent="교체 기준에 도달: "+hit.map(z=>z.n).join(", ")}
+else if(left[wi]<=3){st.style.cssText="background:var(--warn);color:var(--warnt)";st.textContent="3개월 안에 교체 기준에 닿는 구역이 있어요: "+Z[wi].n}
+else{st.style.cssText="background:var(--ok);color:var(--okt)";st.textContent="모든 구역이 교체 기준 위에 있어요."}
+$("e_note").textContent=Q.note+" 점선은 새 라이닝의 안쪽 면, 빨간 사각형은 점검 중인 구역이에요.";
+qDraw(Q);qXs(Q);
+qC1.data.datasets[0].data=rem.map(v=>Math.round(v*100));qC1.data.datasets[0].backgroundColor=rem.map(v=>v<=qR+1e-9?"#d03b3b":v<=qR+0.15?"#f0b429":"#2a78d6");qC1.data.datasets[1].data=Z.map(()=>Math.round(qR*100));
+qC2.data.datasets.forEach((d,i)=>{if(i<Z.length)d.data=qC2.data.labels.map(t=>Math.round(100*(1-Math.min(1,t*0.6/Z[i].life))));else if(i===Z.length+1)d.data=qC2.data.labels.map(()=>Math.round(qR*100));else if(i===Z.length)d.data=qC2.data.labels.map(t=>t===qM?100:null)});
+qC1.update();qC2.update()}
+const QCOL=["#2a78d6","#eb6834","#1baf7a","#6250d6","#b8860b"];
+function qInit(k){qKey=k;const Q=EQS[k];qM=Q.def;qZ=Math.min(qZ,Q.zones.length-1);
+$("eq_sub").textContent=Q.sub;$("m").max=Q.max;$("m").value=qM;$("o_m").textContent=qM;
+$("zsel").innerHTML=Q.zones.map((z,i)=>`<option value="${i}">${i+1}. ${z.n}</option>`).join("");$("zsel").value=qZ;
+if(qC1)qC1.destroy();if(qC2)qC2.destroy();
+qC1=new Chart("e_c1",{data:{labels:Q.zones.map((z,i)=>(i+1)+" "+z.n),datasets:[{type:"bar",label:"잔여 두께",data:[],backgroundColor:[],borderRadius:3},{type:"line",label:"교체 기준",data:[],borderColor:"#898781",borderDash:[5,4],borderWidth:1.5,pointRadius:0}]},options:Object.assign(base({x:{ticks:{color:tc(),font:{size:10},maxRotation:40},grid:{display:false},title:{display:false}},y:{min:0,max:100,ticks:{color:tc(),callback:v=>v+"%"},grid:{color:gc()}}}))});
+const lab=[...Array(Q.max+1)].map((_,i)=>i);
+qC2=new Chart("e_c2",{data:{labels:lab,datasets:[...Q.zones.map((z,i)=>({type:"line",label:(i+1)+" "+z.n,borderColor:QCOL[i%5],borderWidth:2,pointRadius:0,data:[]})),{type:"bar",label:"현재",data:[],backgroundColor:"#d03b3b",barThickness:2},{type:"line",label:"교체 기준",data:[],borderColor:"#898781",borderDash:[5,4],borderWidth:1.5,pointRadius:0}]},options:base({x:{ticks:{color:tc(),maxTicksLimit:10},grid:{display:false},title:{display:true,text:"개월",color:tc()}},y:{min:0,max:100,ticks:{color:tc(),callback:v=>v+"%"},grid:{color:gc()}}})});
+$("e_tb").innerHTML="<table><tr><th>구역</th><th>온도</th><th>작업 라이닝 재질</th><th>두께 mm</th><th>주요 마모 원인</th><th>수명 (개월, 가정)</th></tr>"+Q.zones.map((z,i)=>`<tr><td>${i+1}. ${z.n}</td><td>${z.T}</td><td>${z.mat}</td><td>${z.w}${z.ins?" + 단열 "+z.ins:""}</td><td>${z.mech}</td><td>${z.life}</td></tr>`).join("")+"</table>";
+qRender()}
+function showTab(k){document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));
+$("p_ladle").hidden=k!=="ladle";$("p_eq").hidden=k==="ladle";
+if(k==="ladle"){resize();return}
+qInit(k)}
+document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.t));
+$("m").oninput=x=>{qM=+x.target.value;$("o_m").textContent=qM;qRender()};
+$("r").oninput=x=>{qR=+x.target.value/100;$("o_r").textContent=x.target.value;qRender()};
+$("zsel").onchange=x=>{qZ=+x.target.value;qRender()};
+document.querySelectorAll("#seg2 button").forEach(b=>b.onclick=()=>{qMode=b.dataset.m;document.querySelectorAll("#seg2 button").forEach(c=>c.classList.toggle("on",c===b));qRender()});
+
+EQS.kiln.def=8;EQS.rfcc.def=30;EQS.inc.def=10;EQS.kiln.flow="원료 → (입구에서 출구로)";EQS.rfcc.flow="↑ 공기·촉매 흐름";EQS.inc.flow="폐기물·배가스 →";
+EQS.rh={name:"가열로",o:"h",s:0.12,max:120,def:18,flow:"강재 이동 →",
+sub:"강재 재가열로(워킹빔형) 5개 구역의 라이닝 구성 예시 · 실제 설비 데이터 아님",
+note:"자료에 따르면 가혹도는 강재 이동 방향으로 커지고 균열대에서 최대예요. 실제로는 천장과 노상의 재질이 다른데, 도면은 위·아래를 같은 구성으로 단순화했어요. 두께와 수명은 가정이에요.",
+zones:[
+{n:"장입구·예열대",L:8,T:"600–950 °C",mat:"고알루미나 벽돌·치밀 캐스터블 + 단열 벽돌",c:"#d9c9a3",w:230,ins:115,sh:10,life:96,mech:"스케일·연소가스 화학 침식, 장입 충격"},
+{n:"가열대",L:12,T:"1200–1300 °C",mat:"고알루미나 벽돌·캐스터블 + 단열 벽돌",c:"#c9b38a",w:230,ins:115,sh:10,life:60,mech:"화염 복사 열부하, 스케일 슬래그 비산"},
+{n:"균열대",L:8,T:"1200–1250 °C",mat:"고알루미나(80–85%) 벽돌, 전기용융 고알루미나 노상",c:"#4a4845",w:230,ins:115,sh:10,life:36,mech:"가장 가혹한 구역: 용융 스케일 침식, 노상 마모"},
+{n:"버너벽·버너 포트",L:2,T:"약 1300 °C 이상",mat:"고알루미나 캐스터블·린텔",c:"#6d6a64",w:230,ins:115,sh:10,life:24,mech:"화염 충돌·열충격 (측벽 중 마모 최대)"},
+{n:"추출구·도어",L:2,T:"800–1200 °C",mat:"캐스터블 + 세라믹 파이버 씰",c:"#b8bfc7",w:150,ins:75,sh:10,life:36,mech:"도어 씰 압축, 코너 박락, 외기 유입"}]};
+EQS.bf={name:"고로",o:"v",s:0.06,max:240,def:96,flow:"↑ 가스 상승 · ↓ 장입물 하강",
+sub:"고로(블라스트 퍼니스) 5개 구역의 라이닝 구성 예시 · 실제 설비 데이터 아님",
+note:"아래가 노상(헤스), 위가 샤프트·노구예요. 노상과 보시가 캠페인 수명을 좌우하고, 자료에 따르면 캠페인은 보통 15~20년이에요. 자료의 mm/월 마모율과 캠페인 수명이 서로 맞지 않아, 수명(개월)을 기준으로 마모를 보정했어요. 두께와 수명은 가정이에요.",
+zones:[
+{n:"노상(헤스)",L:5,T:"약 1450–1540 °C (용선)",mat:"마이크로포어 카본·흑연 블록 + 세라믹 컵",c:"#2f2e2c",w:850,ins:0,sh:60,life:216,mech:"용선 침투·침식, 코끼리발 침식, 열응력 균열"},
+{n:"풍구·보시",L:5,T:"1500 °C 이상 (레이스웨이 부근)",mat:"SiC-Si₃N₄ 또는 62% 알루미나·멀라이트 벽돌 + 냉각 스테이브",c:"#6d6a64",w:400,ins:0,sh:60,life:150,mech:"고온, 슬래그·알칼리 침식, 마모, 온도 변동 박리"},
+{n:"벨리",L:3,T:"약 1000–1500 °C",mat:"코런덤 또는 SiC-Si₃N₄ 벽돌",c:"#8a7f6a",w:400,ins:0,sh:60,life:140,mech:"열충격, 마모, CO 침식"},
+{n:"하부 샤프트",L:8,T:"약 700–1100 °C",mat:"고알루미나·슈퍼듀티 내화점토 벽돌",c:"#c9b38a",w:350,ins:0,sh:50,life:120,mech:"장입물 하강 마모, 열충격"},
+{n:"상부 샤프트·노구",L:8,T:"약 230–660 °C",mat:"슈퍼듀티 내화점토 벽돌 (Al₂O₃ 39–42%)",c:"#d9c9a3",w:300,ins:0,sh:50,life:216,mech:"마모, 충격, 중간 온도 변동 박리"}]};
+EQS.sr={name:"2차 개질로",o:"v",s:0.18,max:240,def:72,flow:"↓ 가스 흐름 (위에서 아래로)",
+sub:"암모니아 플랜트 2차 개질로(Secondary Reformer) 5개 구역의 라이닝 구성 예시 · 실제 설비 데이터 아님",
+note:"가스는 위의 연소 영역에서 촉매층을 지나 아래 출구로 나가요. 자료의 한 사례에서는 13년 사용 후 원추부 hot face가 균열·박락됐어요. 구조(고알루미나 hot face + 단열 캐스터블)는 자료를 따랐고, 두께와 수명 일부는 가정이에요.",
+zones:[
+{n:"출구 노즐·하부 콘",L:2,T:"약 900–1000 °C",mat:"고알루미나 벽돌 + 단열 캐스터블(50–60% 알루미나)",c:"#d9c9a3",w:115,ins:200,sh:30,life:180,mech:"열 사이클, 가스 우회로 인한 핫스팟"},
+{n:"촉매 지지 돔(아치)",L:2,T:"약 900–1000 °C",mat:"고알루미나 벽돌 돔 (촉매 하중 지지)",c:"#4a4845",w:230,ins:100,sh:30,life:156,mech:"촉매 하중에 의한 압축 응력, 균열"},
+{n:"촉매층 구간",L:6,T:"약 900–1200 °C",mat:"고알루미나 벽돌 + 단열 캐스터블 (촉매 약 2.8 m 층)",c:"#c9b38a",w:115,ins:200,sh:30,life:156,mech:"열팽창 틈, 벽면 가스 우회(채널링), 핫스팟"},
+{n:"연소 영역",L:4,T:"1200 °C 이상 (추정)",mat:"고순도 고알루미나 벽돌 + 단열층",c:"#6d6a64",w:230,ins:150,sh:30,life:96,mech:"알루미나 휘발·재응축(루비), 국부 과열, 열충격"},
+{n:"상부 돔·버너 영역",L:2,T:"1200 °C 이상 (추정)",mat:"고알루미나 벽돌 또는 캐스터블",c:"#b8bfc7",w:230,ins:100,sh:30,life:96,mech:"균열, hot face 박락(분절 뒤 틈), 버너 주변 침식"}]};
+EQS.ab={name:"흡수탑",o:"v",s:0.5,kx:8,max:240,def:40,flow:"↑ 배가스 상승 · ↓ 슬러리 낙하",
+sub:"습식 배연탈황(FGD) 흡수탑 5개 구역의 내식 라이닝 구성 예시 · 실제 설비 데이터 아님",
+note:"'얻소버 베슬'을 FGD 흡수탑으로 해석했어요(다른 설비면 알려 주세요). 이 설비는 고온 내화물이 아니라 고무, 플레이크글라스, 내산 벽돌, 합금 클래딩을 쓰고, '마모'는 부식과 마모로 라이닝 두께가 줄어드는 것으로 봐요. 얇은 라이닝은 도면에서 확대했어요.",
+zones:[
+{n:"반응 탱크",L:5,T:"약 50–60 °C",mat:"고무 라이닝 또는 플레이크글라스(비닐에스터) 라이닝",c:"#3b3b3b",w:5,ins:0,sh:12,life:120,mech:"pH 4–6 석회석 슬러리의 고체 마모·부식, 염소 농축"},
+{n:"입구 덕트·혼합 구역",L:4,T:"약 150–195 °C (건·습 경계)",mat:"내산 벽돌 + 멤브레인 또는 고합금 클래딩",c:"#c9a66b",w:115,ins:0,sh:12,life:60,mech:"고온 슬러리와 비산회, 산 노점 이하 응축, 열 변동 (가장 가혹)"},
+{n:"스프레이 구역",L:8,T:"약 50–60 °C",mat:"플레이크글라스 또는 합금(C-276·2205) 클래딩, FRP",c:"#2a78d6",w:3,ins:0,sh:12,life:96,mech:"슬러리 스프레이 충돌 마모, 저 pH·염소 부식"},
+{n:"데미스터 구역",L:3,T:"약 50 °C",mat:"플레이크글라스 또는 FRP",c:"#1baf7a",w:3,ins:0,sh:12,life:96,mech:"산성 액적 응축, 스케일 부착, 세정수 충돌"},
+{n:"출구 덕트·스택 접속",L:3,T:"약 50 °C",mat:"FRP 또는 합금 라이너",c:"#898781",w:6,ins:0,sh:10,life:180,mech:"산 노점 이하 응축액 부식"}]};
+
 </script>
 </body>
 </html>

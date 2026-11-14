@@ -1,36 +1,36 @@
-# Ladle refractory wear dashboard
+# 내화물 마모 대시보드
 
-Prototype dashboard for ladle lining wear, structured after the SINTEF paper
-"A pragmatical physics-based model for predicting ladle lifetime" (2024) and its
-open-source model, SINTEF/refractorywear (MIT license).
+설비별 탭으로 구성한 내화물(라이닝) 마모 대시보드예요.
 
-## What it shows
+| 탭 | 내용 | 데이터 성격 |
+|---|---|---|
+| 래들 | SINTEF/refractorywear(MIT)를 공개 히트 7654321로 실제 실행한 결과. 2D 도면, 3D 단면, 행별 침식, 온도 | 실제 모델 실행값 |
+| 로타리 킬른 | 시멘트 킬른 5개 구역 | 일반 구성 예시(가정) |
+| RFCC 재생기 | 에어그리드, 덴스 베드, 희박상, 사이클론, 상부 헤드 | 일반 구성 예시(가정) |
+| 소각로 | 로타리 킬른식 소각로 3구역 + 2차 연소실 2구역 | 일반 구성 예시(가정) |
+| 가열로 | 강재 재가열로: 예열대, 가열대, 균열대, 버너벽, 추출구 | 일반 구성 예시(가정) |
+| 고로 | 노상, 풍구·보시, 벨리, 하부 샤프트, 상부 샤프트·노구 | 일반 구성 예시(가정) |
+| 2차 개질로 | 암모니아 플랜트: 출구 콘, 촉매 지지 돔, 촉매층, 연소 영역, 상부 돔 | 일반 구성 예시(가정) |
+| 흡수탑 | FGD 흡수탑의 내식 라이닝(고무·플레이크글라스·내산 벽돌·합금) | 일반 구성 예시(가정) |
 
-- 3D cutaway of the ladle (the paper's 2D axisymmetric model revolved), colored by erosion per brick row
-- Wall cross-section at any brick row: 3 MgO-C wear bricks, backup/insulation, steel shell
-- Erosion by brick row (40 rows; slag line near row 34 for a 120 t heat)
-- Steel/slag temperature and heat flux over a heat
-- Materials and wear-mechanism summary (carbon dissolves into steel, MgO into slag)
+## 실행
 
-## Live dashboard
+`index.html`을 브라우저로 열거나 GitHub Pages(Settings > Pages > main / root)로 배포하세요.
+차트와 3D 라이브러리를 인터넷(cdnjs)에서 불러와요.
 
-Open `index.html` in a browser, or enable GitHub Pages (Settings > Pages >
-Deploy from a branch > `main` / root) and visit
-`https://<your-user>.github.io/refractory/`.
+## 실제 설비 데이터로 바꾸기
 
-## Data
+`index.html` 스크립트의 `EQS` 객체(`EQS.kiln`, `EQS.bf` 등)에서 구역 길이(L), 작업 라이닝 두께(w),
+단열(ins), 철피(sh), 재질(mat), 수명(life, 개월)을 바꾸면 도면과 차트가 따라 바뀌어요.
+구역 수는 늘리거나 줄여도 돼요.
 
-All numbers are **synthetic**. Output names (`TsteelV`, `TslagV`, `TmeasV`, `q*V`,
-`yerode`) follow the SINTEF model. The erosion profile shape is qualitative, after
-the paper's figures. Real ladle dimensions are confidential, so the 3D shape is
-illustrative.
+## 주의
 
-## Streamlit version
+- 래들 외 탭의 값은 실제 측정이나 모델 결과가 아니라, 공개 자료의 일반적인 구역 구성과 수명 범위를 바탕으로 한 예시 가정값이에요.
+- 마모는 구역별로 월 일정(선형)이라고 가정했고, 수명은 잔여 두께 40%에 닿는 시점에 맞췄어요.
+- 흡수탑은 고온 내화물이 아니라 내식 라이닝이라, 마모는 부식·마모로 인한 라이닝 두께 감소로 해석하세요.
+- 래들의 "히트 수" 슬라이더는 같은 히트를 반복한다고 가정한 선형 누적이에요.
 
-`app.py` (older, simplified 10-layer version): `pip install -r requirements.txt`
-then `streamlit run app.py`.
+## 출처
 
-## Credits
-
-[SINTEF/refractorywear](https://github.com/SINTEF/refractorywear), MIT license.
-If you copy any of its code into this repo, keep its license notice.
+래들: [SINTEF/refractorywear](https://github.com/SINTEF/refractorywear) (MIT). 코드를 복사해 넣을 때는 라이선스 고지를 유지하세요.
