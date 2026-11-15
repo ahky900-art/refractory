@@ -138,12 +138,15 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 <div class="grid">
 <div class="card"><h2>2D 구역별 내화물 단면 도면</h2><div id="e_dwg"></div><div id="e_leg"></div><div class="note" id="e_note"></div></div>
 <div class="card"><h2>선택한 구역의 벽 단면</h2><div id="e_xs"></div><div id="e_xt" style="font-size:13px;margin:4px 0"></div><div id="e_xtb"></div></div>
+<div class="card"><h2>선택한 구역 안에서 위치별 잔여 두께</h2><div class="box"><canvas id="e_c5"></canvas></div><div class="note">구역 안에서도 위치와 벽 쪽(A: 위·왼쪽, B: 아래·오른쪽)에 따라 닳는 정도가 달라요. 분포는 가정이고, 가장 얇은 곳이 구역 값(교체 판단 기준)이에요.</div></div>
+<div class="card"><h2>점검 실측값 반영 (선택)</h2><div class="note" style="margin:0 0 6px">구역 번호와 가장 얇은 곳의 잔여 두께(mm)를 한 줄에 하나씩 적어요. 예) 3,120</div><textarea id="meas" rows="4" style="width:100%;background:var(--bg);color:var(--ink);border:0.5px solid var(--line);border-radius:8px;padding:6px;font:13px monospace"></textarea><div class="seg" style="margin-top:6px"><button id="meas_ok">반영</button><button id="meas_clr">지우기</button></div><div class="note">반영한 구역은 모델 대신 실측 마모에서 시작해 스케줄 마모율로 이어가요. 추이 선은 모델값이에요.</div></div>
 <div class="card"><h2>월별 생산 스케줄</h2><div class="box"><canvas id="e_c3"></canvas></div><div class="note">막대는 그 달의 가동 부하(%), 선은 정지·재가동 횟수예요. 마모율은 구역마다 부하^지수(침식·고온)와 정지 횟수(열충격)에 비례하게 반영했어요. 기준(부하 100%, 월 가동 30일, 기준 정지 횟수)에서는 아래 수명과 같아요.</div></div>
 <div class="card"><h2>구역별 잔여 두께</h2><div class="box"><canvas id="e_c1"></canvas></div></div>
 <div class="card" style="grid-column:1/-1"><h2>가동 기간에 따른 잔여 두께 (스케줄 반영)</h2><div class="box"><canvas id="e_c2"></canvas></div></div>
 <div class="card" style="grid-column:1/-1"><h2>스케줄이 내화물에 주는 부하: 이 설비의 메커니즘</h2><div id="e_chain"></div><div class="note">일반적인 마모 메커니즘 설명이에요. 배율을 정하는 부하 지수와 정지 민감도는 가정값이에요.</div></div>
 <div class="card"><h2>지금 스케줄의 마모 속도 배율 (구역별)</h2><div class="box"><canvas id="e_c4"></canvas></div><div class="note">기준(부하 100%, 월 30일, 기준 정지 횟수)을 1.0으로 한 배율이에요. 파랑은 부하·가동 시간(침식·고온) 때문, 보라는 정지·재가동(열충격) 때문이에요. 선택한 달 기준이에요.</div></div>
 <div class="card"><h2>메커니즘 한눈에 보기</h2><div id="mech_an_e"></div></div>
+<div class="card" style="grid-column:1/-1"><details open><summary>부위별 마모 수식과 가정값</summary><div id="e_ph" style="font-size:13px"></div></details></div>
 <div class="card" style="grid-column:1/-1"><details open><summary>구역별 라이닝, 마모 방식, 스케줄 민감도</summary><div id="e_tb" style="overflow-x:auto"></div>
 <div class="note">이 탭의 값은 래들처럼 실제 모델을 실행한 결과가 아니라, 공개 자료의 일반적인 구성과 수명 범위를 바탕으로 한 <b>예시 가정값</b>이에요. 구역 길이, 두께, 수명, 부하 지수(kL), 정지 민감도(cs)는 실제 설비 자료로 바꿔 쓰세요. 스크립트 맨 아래의 <code>EQS</code> 객체를 고치면 돼요. 월 마모율 = (0.6/수명) × [(1−cs) × 부하^kL × 가동일/30 + cs × 정지횟수/기준정지횟수]이고, 수명은 잔여 두께 40%에 닿는 시점이에요.</div></details></div>
 </div>
@@ -463,8 +466,10 @@ if(i===qZ)fr+=pg([[cx-hw,t],[cx+hw,t],[cx+hw,b],[cx+0.18,bt],[cx-0.18,bt],[cx-hw
 sv+=`<text x="${X(-c.x)-4}" y="${Y(c.top+0.7)}" font-size="10" fill="#898781">${i+1}</text>`;return}
 const P=[[X(z.g[0]),Y(z.g[1])],[X(z.g[2]),Y(z.g[3])]],dx=P[1][0]-P[0][0],dy=P[1][1]-P[0][1],ln=Math.hypot(dx,dy)||1,n=[-dy/ln,dx/ln],r=[z.r[0]*u,z.r[1]*u];let tot=0;
 [-1,1].forEach(sg=>{const k=(sg>0&&z.b)?z.b:z,wp=Math.max(k.w*Q.s,4),ip=k.ins*Q.s,sp=Math.max(k.sh*Q.s,3);tot=Math.max(tot,wp+ip+sp);
-sv+=pg(quad(P,n,sg,r,0,e*wp),"none",'stroke="#d03b3b" stroke-width=".6" stroke-dasharray="2 2"');
-sv+=pg(quad(P,n,sg,r,e*wp,wp),f);
+const fsd=sg<0?(z.fa==null?1:z.fa):(z.fb==null?1:z.fb);
+for(let s_=0;s_<KS;s_++){const t0=s_/KS,t1=(s_+1)/KS,es=WS[i][sg<0?0:1][s_],L=(t)=>[P[0][0]+(P[1][0]-P[0][0])*t,P[0][1]+(P[1][1]-P[0][1])*t],Ps=[L(t0),L(t1)],rs=[r[0]+(r[1]-r[0])*t0,r[0]+(r[1]-r[0])*t1],fc=qMode==="wear"?ramp(es/(1-qR)):z.c;
+sv+=pg(quad(Ps,n,sg,rs,0,es*wp),"none",'stroke="#d03b3b" stroke-width=".6" stroke-dasharray="2 2"');
+sv+=pg(quad(Ps,n,sg,rs,es*wp,wp),fc,'stroke="'+fc+'" stroke-width=".4"')}
 if(ip>0.05)sv+=pg(quad(P,n,sg,r,wp,wp+ip),"#e8c84a");
 sv+=pg(quad(P,n,sg,r,wp+ip,wp+ip+sp),"#888780");
 if(i===qZ)fr+=pg(quad(P,n,sg,r,-2,wp+ip+sp+2),"none",'stroke="#d03b3b" stroke-width="1.8"')});
@@ -482,45 +487,74 @@ s+=`<rect x="${x0+(z.w+z.ins)*k}" y="6" width="${z.sh*k}" height="36" fill="#888
 $("e_xs").innerHTML=s;
 const rem=1-e;$("e_xt").textContent=`${qZ+1}. ${z.n} (${z.T}): 작업 라이닝 ${(e*100).toFixed(0)}% 마모, ${(rem*100).toFixed(0)}% 남음 (${(z.w*rem).toFixed(0)} / ${z.w} mm).`;
 $("e_xtb").innerHTML=`<table><tr><th>층</th><th>현재 두께 mm</th><th>재질</th></tr><tr><td>작업 라이닝</td><td>${(z.w*rem).toFixed(0)}</td><td>${z.mat}</td></tr>${z.ins?`<tr><td>단열층</td><td>${z.ins}</td><td>단열 캐스터블·보드</td></tr>`:""}<tr><td>철피</td><td>${z.sh}</td><td>탄소강</td></tr></table>`}
-let WZ=[],CW=[],qScen="steady",qLoad=100,qDays=30,qStops=0.4,qC3=null,qC4=null;
+let WZ=[],CW=[],WS=[],SEG=[],SEGa=[],MEAS={},qScen="steady",qLoad=100,qDays=30,qStops=0.4,qC3=null,qC4=null,qC5=null;
+const KS=8,fAB=z=>[z.fa==null?1:z.fa,z.fb==null?1:z.fb];
+function segArr(z){if(z.kind==="cyc")return Array(KS).fill(1);const w=z.wp||["flat"],lo=w[3]==null?0.6:w[3];
+const a=[...Array(KS).keys()].map(s=>{const x=(s+0.5)/KS;if(w[0]==="peak")return lo+(1-lo)*Math.exp(-(((x-w[1])/(w[2]||0.25))**2));if(w[0]==="rise")return lo+(1-lo)*x;if(w[0]==="fall")return lo+(1-lo)*(1-x);return 1});
+const mx=Math.max(...a);return a.map(v=>v/mx)}
 function sprof(m){const Q=EQS[qKey],L0=qLoad/100,D0=qDays/30,k=m%12;let L=L0,D=D0,S=qStops;
 if(qScen==="dip"&&k>=4&&k<=7){L*=0.65;D*=0.8}else if(qScen==="season")L*=1+0.25*Math.sin(2*Math.PI*k/12);else if(qScen==="stops"){S=Math.max(S*3,S+0.2);D*=0.93}else if(qScen==="surge"&&k>=3&&k<=8)L*=1.15;
 return{L,D,S}}
 function zr(z,Q,m){const p=sprof(m),kL=z.kL==null?Q.kL:z.kL,cs=z.cs==null?Q.cs:z.cs;return(0.6/z.life)*((1-cs)*Math.pow(p.L,kL)*p.D+cs*(p.S/Q.S0))}
-function qRender(){const Q=EQS[qKey],Z=Q.zones,mx=Q.max;
-CW=Z.map(z=>{const a=[0];for(let m=0;m<=mx;m++)a.push(Math.min(1,a[m]+zr(z,Q,m)));return a});
-WZ=CW.map(a=>a[Math.min(qM,mx+1)]);
-const rem=WZ.map(w=>1-w),left=Z.map((z,i)=>{let w=WZ[i],m=qM;while(w<1-qR-1e-9&&m<qM+600){w+=zr(z,Q,m);m++}return m-qM});
+const phIdx=(i,sd,s)=>i*100+(sd+1)*10+s;
+const phR=(ph,i,s,sd,L)=>ph.rate(i,s,sd,L)+(ph.base||0)*Math.sqrt(L);
+function phMax(Q,i){let mx=0;[-1,1].forEach(sd=>{for(let s=0;s<KS;s++)mx=Math.max(mx,phR(Q.ph,i,s,sd,1))});return mx}
+function phInit(Q){const ph=Q.ph;if(!ph)return;if(!ph.c0)ph.c0={};if(ph.K==null&&ph.anchor)ph.K=(0.6/ph.anchor.life)/phMax(Q,ph.anchor.i)}
+function phLife(Q,i){const ph=Q.ph;if(!ph||!ph.use||!ph.use[i])return null;return 0.6/(ph.K*phMax(Q,i))}
+function stepW(Q,i,sd,s,w,m){const z=Q.zones[i],p=sprof(m),ph=Q.ph;
+if(ph&&ph.kin&&ph.kin[i])return Math.min(1,w+Math.max(0,ph.weq(i,s,sd,p.L)-w)/ph.tau*p.D);
+if(ph&&ph.use&&ph.use[i]){const cs=z.cs==null?Q.cs:z.cs,k=phIdx(i,sd,s),r0=ph.c0[k]!=null?ph.c0[k]:(ph.c0[k]=phR(ph,i,s,sd,1));return Math.min(1,w+ph.K*((1-cs)*phR(ph,i,s,sd,p.L)*p.D+cs*(p.S/Q.S0)*r0))}
+const f=fAB(z);return Math.min(1,w+zr(z,Q,m)*SEGa[i][s]*(sd<0?f[0]:f[1]))}
+function qRender(){const Q=EQS[qKey],Z=Q.zones,mx=Q.max;lay(Q);phInit(Q);SEGa=Z.map(segArr);
+const CS=Z.map((z,i)=>[-1,1].map(sd=>[...Array(KS).keys()].map(s=>{const a=[0];for(let m=0;m<=mx;m++)a.push(stepW(Q,i,sd,s,a[m],m));return a})));
+const mi=Math.min(qM,mx+1);
+WS=CS.map(zs=>zs.map(ss=>ss.map(a=>a[mi])));
+CW=CS.map(zs=>{const o=[];for(let m=0;m<=mx+1;m++){let b=0;zs.forEach(ss=>ss.forEach(a=>{if(a[m]>b)b=a[m]}));o.push(b)}return o});
+WZ=WS.map(zs=>Math.max(...zs.map(ss=>Math.max(...ss))));
+Object.keys(MEAS).forEach(k=>{const i=+k-1;if(!Z[i])return;const tg=Math.max(0,Math.min(1,1-MEAS[k]/Z[i].w)),f=WZ[i]>0?tg/WZ[i]:0;WS[i]=WS[i].map(ss=>ss.map(v=>Math.min(1,v*f)));WZ[i]=tg});
+const rem=WZ.map(w=>1-w),tgt=1-qR;
+const left=Z.map((z,i)=>{if(WZ[i]>=tgt-1e-9)return 0;let bw=-1,bs=0,bsd=-1,bsc=-1;const tie=(sd,s)=>Q.ph&&Q.ph.kin&&Q.ph.kin[i]?Q.ph.weq(i,s,sd,1):(Q.ph&&Q.ph.use&&Q.ph.use[i]?phR(Q.ph,i,s,sd,1):SEGa[i][s]*(sd<0?fAB(z)[0]:fAB(z)[1]));
+[-1,1].forEach(sd=>WS[i][sd<0?0:1].forEach((v,s)=>{const sc=v+1e-6*tie(sd,s);if(sc>bsc){bsc=sc;bw=v;bs=s;bsd=sd}}));let ww=bw,m=qM;while(ww<tgt-1e-9&&m<qM+600){ww=stepW(Q,i,bsd,bs,ww,m);m++}return m-qM});
 const wi=left.indexOf(Math.min(...left)),hit=Z.filter((z,i)=>rem[i]<=qR+1e-9);
 $("e1").textContent=Z[wi].n;$("e2").textContent=Math.round(rem[wi]*100)+"%";$("e3").textContent=left[wi]<=0?"도달":left[wi]>=600?"50년 이상":left[wi]+"개월 후";$("e4").textContent=hit.length+"개";
 const st=$("e_st");
 if(hit.length){st.style.cssText="background:var(--bad);color:var(--badt)";st.textContent="교체 기준에 도달: "+hit.map(z=>z.n).join(", ")}
 else if(left[wi]<=3){st.style.cssText="background:var(--warn);color:var(--warnt)";st.textContent="3개월 안에 교체 기준에 닿는 구역이 있어요: "+Z[wi].n}
 else{st.style.cssText="background:var(--ok);color:var(--okt)";st.textContent="모든 구역이 교체 기준 위에 있어요."}
-$("e_note").textContent=Q.note+" 점선은 새 라이닝의 안쪽 면, 빨간 사각형은 점검 중인 구역이에요.";
+$("e_note").textContent=Q.note+" 점선은 새 라이닝의 안쪽 면, 빨간 사각형은 점검 중인 구역이에요. "+(Q.ph?"구역 안 위치별 마모는 아래 수식에서 계산했어요.":"이 설비의 구역별 수명과 구역 안 분포는 가정이에요.");
 qDraw(Q);qXs(Q);
-qC1.data.datasets[0].data=rem.map(v=>Math.round(v*100));qC1.data.datasets[0].backgroundColor=rem.map(v=>v<=qR+1e-9?"#d03b3b":v<=qR+0.15?"#f0b429":"#2a78d6");qC1.data.datasets[1].data=Z.map(()=>Math.round(qR*100));
+const all=WS[qZ].flat(),zq=Z[qZ];
+$("e_xt").textContent+=` 구역 안에서는 가장 얇은 곳 ${(zq.w*(1-Math.max(...all))).toFixed(0)} mm, 가장 두꺼운 곳 ${(zq.w*(1-Math.min(...all))).toFixed(0)} mm예요.`;
+const mean=Z.map((z,i)=>1-WS[i].flat().reduce((a,b)=>a+b,0)/(2*KS));
+qC1.data.datasets[0].data=rem.map(v=>Math.round(v*100));qC1.data.datasets[0].backgroundColor=rem.map(v=>v<=qR+1e-9?"#d03b3b":v<=qR+0.15?"#f0b429":"#2a78d6");
+qC1.data.datasets[1].data=mean.map(v=>Math.round(v*100));qC1.data.datasets[2].data=Z.map(()=>Math.round(qR*100));
 const lab=qC2.data.labels;
 qC2.data.datasets.forEach((d,i)=>{if(i<Z.length)d.data=lab.map(t=>Math.round(100*(1-CW[i][Math.min(t,mx+1)])));else if(i===Z.length)d.data=lab.map(t=>t===qM?100:null);else d.data=lab.map(()=>Math.round(qR*100))});
 qC3.data.datasets[0].data=lab.map(t=>Math.round(sprof(t).L*sprof(t).D*100));qC3.data.datasets[1].data=lab.map(t=>Math.round(sprof(t).S*10)/10);
-const pp=sprof(qM);
-qC4.data.datasets[0].data=Z.map(z=>{const cs=z.cs==null?Q.cs:z.cs,kL=z.kL==null?Q.kL:z.kL;return Math.round((1-cs)*Math.pow(pp.L,kL)*pp.D*100)/100});
-qC4.data.datasets[1].data=Z.map(z=>{const cs=z.cs==null?Q.cs:z.cs;return Math.round(cs*pp.S/Q.S0*100)/100});
-qC1.update();qC2.update();qC3.update();qC4.update()}
+const pp=sprof(qM),tl=Z.map((z,i)=>{const cs=z.cs==null?Q.cs:z.cs;
+if(Q.ph&&Q.ph.kin&&Q.ph.kin[i]){let a=0,b=0;for(let s=0;s<KS;s++)[-1,1].forEach(sd=>{a=Math.max(a,Q.ph.weq(i,s,sd,pp.L));b=Math.max(b,Q.ph.weq(i,s,sd,1))});return[b>0?a/b:1,0]}
+if(Q.ph&&Q.ph.use&&Q.ph.use[i]){let a=0,b=0;for(let s=0;s<KS;s++)[-1,1].forEach(sd=>{const r0=phR(Q.ph,i,s,sd,1);if(r0>b){b=r0;a=phR(Q.ph,i,s,sd,pp.L)}});return[(1-cs)*(b>0?a/b:1)*pp.D,cs*pp.S/Q.S0]}
+const kL=z.kL==null?Q.kL:z.kL;return[(1-cs)*Math.pow(pp.L,kL)*pp.D,cs*pp.S/Q.S0]});
+qC4.data.datasets[0].data=tl.map(v=>Math.round(v[0]*100)/100);qC4.data.datasets[1].data=tl.map(v=>Math.round(v[1]*100)/100);
+qC5.data.datasets[0].data=WS[qZ][0].map(v=>Math.round(100*(1-v)));qC5.data.datasets[1].data=WS[qZ][1].map(v=>Math.round(100*(1-v)));
+qC1.update();qC2.update();qC3.update();qC4.update();qC5.update()}
 const QCOL=["#2a78d6","#eb6834","#1baf7a","#6250d6","#b8860b","#d03b3b","#898781","#0e8f8f"];
 function qInit(k){qKey=k;const Q=EQS[k];qM=Q.def;qZ=Math.min(qZ,Q.zones.length-1);qScen="steady";qLoad=100;qDays=30;qStops=Q.S0;
 document.querySelectorAll("#seg5 button").forEach(c=>c.classList.toggle("on",c.dataset.m==="steady"));
 $("eq_sub").textContent=Q.sub;$("m").max=Q.max;$("m").value=qM;$("o_m").textContent=qM;
 $("ld").value=100;$("o_ld").textContent=100;$("dy").value=30;$("o_dy").textContent=30;$("sp").value=qStops;$("o_sp").textContent=qStops.toFixed(1);
 $("zsel").innerHTML=Q.zones.map((z,i)=>`<option value="${i}">${i+1}. ${z.n}</option>`).join("");$("zsel").value=qZ;
-if(qC1)qC1.destroy();if(qC2)qC2.destroy();if(qC3)qC3.destroy();if(qC4)qC4.destroy();
-qC1=new Chart("e_c1",{data:{labels:Q.zones.map((z,i)=>(i+1)+" "+z.n),datasets:[{type:"bar",label:"잔여 두께",data:[],backgroundColor:[],borderRadius:3},{type:"line",label:"교체 기준",data:[],borderColor:"#898781",borderDash:[5,4],borderWidth:1.5,pointRadius:0}]},options:base({x:{ticks:{color:tc(),font:{size:10},maxRotation:40},grid:{display:false},title:{display:false}},y:{min:0,max:100,ticks:{color:tc(),callback:v=>v+"%"},grid:{color:gc()}}})});
+if(qC1)qC1.destroy();if(qC2)qC2.destroy();if(qC3)qC3.destroy();if(qC4)qC4.destroy();if(qC5)qC5.destroy();MEAS={};$("meas").value="";
+qC1=new Chart("e_c1",{data:{labels:Q.zones.map((z,i)=>(i+1)+" "+z.n),datasets:[{type:"bar",label:"가장 얇은 곳",data:[],backgroundColor:[],borderRadius:3},{type:"bar",label:"구역 평균",data:[],backgroundColor:"#9aa7b8",borderRadius:3},{type:"line",label:"교체 기준",data:[],borderColor:"#898781",borderDash:[5,4],borderWidth:1.5,pointRadius:0}]},options:base({x:{ticks:{color:tc(),font:{size:10},maxRotation:40},grid:{display:false},title:{display:false}},y:{min:0,max:100,ticks:{color:tc(),callback:v=>v+"%"},grid:{color:gc()}}})});
 const lab=[...Array(Q.max+1)].map((_,i)=>i);
 qC2=new Chart("e_c2",{data:{labels:lab,datasets:[...Q.zones.map((z,i)=>({type:"line",label:(i+1)+" "+z.n,borderColor:QCOL[i%8],borderWidth:2,pointRadius:0,data:[]})),{type:"bar",label:"현재",data:[],backgroundColor:"#d03b3b",barThickness:2},{type:"line",label:"교체 기준",data:[],borderColor:"#898781",borderDash:[5,4],borderWidth:1.5,pointRadius:0}]},options:base({x:{ticks:{color:tc(),maxTicksLimit:10},grid:{display:false},title:{display:true,text:"개월",color:tc()}},y:{min:0,max:100,ticks:{color:tc(),callback:v=>v+"%"},grid:{color:gc()}}})});
 qC3=new Chart("e_c3",{data:{labels:lab,datasets:[{type:"bar",label:"가동 부하 (%)",data:[],backgroundColor:"#2a78d6",yAxisID:"y"},{type:"line",label:"정지·재가동 (회/월)",data:[],borderColor:"#eb6834",borderWidth:2,pointRadius:0,stepped:true,yAxisID:"y2"}]},options:base({x:{ticks:{color:tc(),maxTicksLimit:10},grid:{display:false},title:{display:true,text:"개월",color:tc()}},y:{min:0,ticks:{color:tc()},grid:{color:gc()}},y2:{position:"right",min:0,ticks:{color:tc()},grid:{display:false}}})});
 qC4=new Chart("e_c4",{data:{labels:Q.zones.map((z,i)=>(i+1)+" "+z.n),datasets:[{type:"bar",label:"부하·가동 시간 (침식·고온)",data:[],backgroundColor:"#2a78d6",stack:"s"},{type:"bar",label:"정지·재가동 (열충격)",data:[],backgroundColor:"#6250d6",stack:"s"},{type:"line",label:"기준 1.0",data:Q.zones.map(()=>1),borderColor:"#898781",borderDash:[5,4],borderWidth:1.5,pointRadius:0}]},options:base({x:{stacked:true,ticks:{color:tc(),font:{size:10},maxRotation:40},grid:{display:false},title:{display:false}},y:{stacked:true,min:0,ticks:{color:tc(),callback:v=>"×"+v},grid:{color:gc()}}})});
+qC5=new Chart("e_c5",{data:{labels:[...Array(KS)].map((_,i)=>String(i+1)),datasets:[{type:"bar",label:"벽 A (위·왼쪽)",data:[],backgroundColor:"#2a78d6",borderRadius:2},{type:"bar",label:"벽 B (아래·오른쪽)",data:[],backgroundColor:"#eb6834",borderRadius:2}]},options:base({x:{ticks:{color:tc()},grid:{display:false},title:{display:true,text:"구역 안 위치 (축 방향 시작 → 끝)",color:tc()}},y:{min:0,max:100,ticks:{color:tc(),callback:v=>v+"%"},grid:{color:gc()}}})});
 $("e_chain").innerHTML=chainHTML(Q.ch);
-$("e_tb").innerHTML="<table><tr><th>구역</th><th>온도</th><th>작업 라이닝 재질</th><th>두께 mm</th><th>주요 마모 원인</th><th>수명 (개월, 가정)</th><th>부하 지수 kL</th><th>정지 민감도 cs</th></tr>"+Q.zones.map((z,i)=>`<tr><td>${i+1}. ${z.n}</td><td>${z.T}</td><td>${z.mat}</td><td>${z.w}${z.ins?" + 단열 "+z.ins:""}</td><td>${z.mech}</td><td>${z.life}</td><td>${z.kL==null?Q.kL:z.kL}</td><td>${Math.round((z.cs==null?Q.cs:z.cs)*100)}%</td></tr>`).join("")+"</table>";
+lay(Q);phInit(Q);
+$("e_ph").innerHTML=Q.ph?'<div style="margin-bottom:6px"><b>수식</b></div>'+Q.ph.eq.map(x=>'<div style="margin:3px 0;padding:4px 8px;background:var(--bg);border-radius:6px">'+x+'</div>').join("")+'<div style="margin:8px 0 4px"><b>값과 출처</b></div><table><tr><th>항목</th><th>값</th><th>구분</th></tr>'+Q.ph.par.map(p=>'<tr><td>'+p[0]+'</td><td>'+p[1]+'</td><td>'+p[2]+'</td></tr>').join("")+'</table>'+(Q.ph.note2?'<div class="note">'+Q.ph.note2+'</div>':'')+'<div class="note">"가정"은 근거 자료가 없어 제가 정한 값이에요. 수식은 일반적인 형태이고, 실제 설비 데이터로 계수를 맞춰야 정량값이 돼요. 구역별 수명은 이 수식과 기준 보정(K 하나)에서 계산돼요.</div>':'<div class="note">이 설비는 수식을 적용하지 않았어요. 구역별 수명(개월), 부하 지수, 구역 안 분포는 모두 가정이에요.</div>';
+$("e_tb").innerHTML="<table><tr><th>구역</th><th>온도</th><th>작업 라이닝 재질</th><th>두께 mm</th><th>주요 마모 원인</th><th>수명 (개월)</th><th>부하 지수 kL</th><th>정지 민감도 cs</th><th>구역 안 마모 분포 (가정)</th></tr>"+Q.zones.map((z,i)=>`<tr><td>${i+1}. ${z.n}</td><td>${z.T}</td><td>${z.mat}</td><td>${z.w}${z.ins?" + 단열 "+z.ins:""}</td><td>${z.mech}</td><td>${(()=>{const L=phLife(Q,i);return L!=null?(L>600?"50년 이상 (계산)":Math.round(L)+" (계산)"):(Q.ph&&Q.ph.kin&&Q.ph.kin[i]?"평형 접근식":z.life)})()}</td><td>${Q.ph&&((Q.ph.use&&Q.ph.use[i])||(Q.ph.kin&&Q.ph.kin[i]))?"수식":(z.kL==null?Q.kL:z.kL)}</td><td>${Math.round((z.cs==null?Q.cs:z.cs)*100)}%</td><td>${Q.ph&&((Q.ph.use&&Q.ph.use[i])||(Q.ph.kin&&Q.ph.kin[i]))?"수식에서 계산":wpTxt(z)}</td></tr>`).join("")+"</table>";
 qRender()}
 function showTab(k){document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));
 $("p_ladle").hidden=k!=="ladle";$("p_eq").hidden=k==="ladle";
@@ -581,6 +615,76 @@ EQS.cfb.ch=[
 {t:"er",s:["부하 ↑ (출력 ↑)","유동화 속도와 입자 순환량 ↑","입자 충돌 에너지 ↑ (속도의 2~3제곱 가정)","수냉벽-내화물 경계·사이클론 침식 ↑"]},
 {t:"th",s:["부하 추종·기동/정지 ↑","열 사이클","미세 분진이 틈에 쌓여 열팽창 때 벽돌을 밂","내화물 박락·균열"]},
 {t:"ch",s:["연료 알칼리·회분 ↑","재가 뭉치고 알칼리가 침투","부식·뭉침","루프실·리턴 레그 손상"]}];
+
+const wpTxt=z=>{const w=z.wp||["flat"];return w[0]==="peak"?"국부 정점 (구역의 "+Math.round(w[1]*100)+"% 지점)":w[0]==="rise"?"축 방향 끝으로 갈수록 더 닳음":w[0]==="fall"?"축 방향 시작 쪽이 더 닳음":"비교적 균일"};
+$("meas_ok").onclick=()=>{MEAS={};$("meas").value.split(/\n/).forEach(l=>{const m=l.trim().split(/[\s,;]+/);if(m.length>=2&&+m[0]>0&&+m[1]>=0)MEAS[+m[0]]=+m[1]});qRender()};
+$("meas_clr").onclick=()=>{MEAS={};$("meas").value="";qRender()};
+/* 구역 안 마모 분포(가정): peak=[ "peak", 위치(0~1), 폭, 최소배율 ], rise/fall=[ "rise", 0, 0, 최소배율 ], fa/fb = 벽 A(위·왼쪽)/B(아래·오른쪽) 배율 */
+const WP={
+kiln:[["flat"],["rise",0,0,0.6],["peak",0.6,0.25,0.55],["peak",0.3,0.3,0.6],["rise",0,0,0.6]],
+rfcc:[["peak",0.8,0.3,0.6],["peak",0.15,0.3,0.6],["flat"],["fall",0,0,0.7],["flat"],["flat"]],
+inc:[["flat"],["rise",0,0,0.7],["peak",0.5,0.3,0.6],["flat"],["peak",0.3,0.3,0.6],["rise",0,0,0.7]],
+rh:[["flat"],["rise",0,0,0.7],["peak",0.6,0.3,0.6],["peak",0.3,0.3,0.55],["flat"]],
+bf:[["peak",0.15,0.25,0.5],["fall",0,0,0.6],["peak",0.5,0.4,0.7],["rise",0,0,0.65],["fall",0,0,0.7],["flat"]],
+sr:[["flat"],["peak",0.5,0.4,0.7],["peak",0.9,0.25,0.6],["peak",0.6,0.3,0.5],["fall",0,0,0.7],["flat"]],
+ab:[["peak",0.75,0.25,0.6],["peak",0.2,0.3,0.5],["peak",0.3,0.3,0.6],["flat"],["flat"]],
+cfb:[["peak",0.8,0.3,0.6],["peak",0.9,0.3,0.4],["peak",0.1,0.15,0.4],["peak",0.8,0.3,0.6],["peak",0.3,0.3,0.55],["flat"],["peak",0.2,0.3,0.6],["peak",0.5,0.4,0.6]]};
+Object.keys(WP).forEach(k=>EQS[k].zones.forEach((z,i)=>{if(WP[k][i])z.wp=WP[k][i]}));
+/* 천장(위, 벽 A)과 노상(아래, 벽 B)이 다른 가열로: 노상 쪽이 스케일 침식으로 더 닳음 */
+EQS.rh.zones[2].fa=0.75;EQS.rh.zones[3].fa=0.6;
+
+/* ===== 물리식 기반 부위별 마모율 (킬른, CFB, RFCC, 가열로, 고로 노상) =====
+   rate(i,s,sd,L): i=구역, s=구역 안 구간(0~7), sd=벽(-1: A 위·왼쪽, +1: B 아래·오른쪽), L=부하(1=기준) -> 상대 마모율
+   월 마모율 = K x [(1-cs) x rate(L) x 가동일/30 + cs x rate(1) x 정지횟수/기준정지횟수]
+   K는 anchor 구역의 가장 닳는 곳이 anchor.life 개월에 교체 기준(잔여 40%)에 닿도록 맞춘 상수 하나뿐이에요. */
+const PHR=8.314,phLerp=(a,b,t)=>a+(b-a)*t;
+const phPos=(z,s)=>{const t=(s+0.5)/KS;return z.g?[phLerp(z.g[0],z.g[2],t),phLerp(z.g[1],z.g[3],t),t]:[0,0,t]};
+const phArr=(T,Tr,Ea)=>Math.exp(-Ea/PHR*(1/(T+273.15)-1/(Tr+273.15)));
+const phTab=(p,x)=>{if(x<=p[0][0])return p[0][1];for(let k=1;k<p.length;k++)if(x<=p[k][0])return phLerp(p[k-1][1],p[k][1],(x-p[k-1][0])/(p[k][0]-p[k-1][0]));return p[p.length-1][1]};
+const phCyc=(t,L,vin0,cc0)=>{const vin=vin0*L,cc=cc0*L,n=2.5;
+if(t<0.5){const r=phLerp(0.9,2.3,t*2);return cc*(2.3/r)*Math.pow(vin*Math.exp(-1)*Math.pow(2.3/r,0.5),n)}
+const a=(t-0.5)*2;return cc*Math.pow(vin*Math.exp(-(1-a))*(a>0.85?1.5:1),n)};
+/* 킬른: 고온면 온도 프로파일(공급 끝 x=0 -> 버너 끝 x=60) */
+const KT=[[0,650],[6,900],[20,1200],[28,1380],[33,1480],[38,1450],[50,1300],[60,1100]];
+EQS.kiln.ph={use:[1,1,1,1,1],anchor:{i:2,life:12},
+rate:(i,s,sd,L)=>{const x=phPos(EQS.kiln.zones[i],s)[0],T=phTab(KT,x)+120*(L-1),cf=(T>1150&&T<1420)?0.35:1;
+return phArr(T,1477,250e3)*cf+0.45*Math.sqrt(L)+0.5*Math.exp(-(((T-1000)/120)**2))*L},
+eq:["마모율 φ = φ용해 + φ마모 + φ알칼리","φ용해 = exp[-Ea/R x (1/T - 1/Tref)] x 코팅계수  (T: 벽돌 고온면 온도, 아레니우스형 용해)","코팅계수 = 0.35 (T가 1150~1420 °C라 클링커 코팅이 안정) 또는 1.0 (그 밖: 코팅 없음)","φ마모 = 0.45 x 부하^0.5 (원료 마찰, 전 구간 일정)","φ알칼리 = 0.5 x exp[-((T-1000)/120)^2] x 부하 (900~1100 °C 구간의 염 응축)","T(x) = 축 방향 프로파일(아래 표) + 120 °C x (부하-1)"],
+par:[["Ea (용해 활성화 에너지)","250 kJ/mol","가정(일반 범위)"],["Tref","1477 °C (소성대 정점)","기준"],["코팅 안정 구간","1150~1420 °C, 계수 0.35","가정"],["마모·알칼리 계수","0.45 / 0.5, 알칼리 중심 1000 °C·폭 120","가정"],["부하 1 변화당 온도","120 °C","가정"],["온도 프로파일 (x m: °C)","0:650, 6:900, 20:1200, 28:1380, 33:1480, 38:1450, 50:1300, 60:1100","가정(일반 형태)"],["K 보정","소성대 가장 닳는 곳이 12개월에 교체 기준","가정(자료의 8~18개월 범위)"]]};
+/* CFB: 입자 침식 phi = c(y) x (u x edge x L)^n x L  (c: 벽 고체 농도, u: 벽 입자 속도, n: 침식 지수) */
+EQS.cfb.ph={use:[1,1,1,1,1,1,1,1],anchor:{i:4,life:48},base:0.1,
+rate:(i,s,sd,L)=>{const z=EQS.cfb.zones[i],y=phPos(z,s)[1],t=phPos(z,s)[2],n=2.5;
+if(i<=2){const c=y<1.5?1:Math.exp(-(y-1.5)/5),u=y<1.5?0.35:1,e=y>=7?1+4*Math.exp(-(y-7)/0.8):1,cw=i===2?0.5:1;return cw*c*Math.pow(u*e*L,n)*L}
+if(i===3)return 0.05*L*Math.pow(2.5*L,n);
+if(i===4)return 0.05*L*Math.pow(2.5*L*Math.exp(-(1-t))*(t>0.85?1.5:1),n);
+if(i===5){const r=phLerp(0.9,2.3,t);return 0.05*L*(2.3/r)*Math.pow(2.5*L*Math.exp(-1)*Math.pow(2.3/r,0.5),n)}
+return 0.07*L},
+eq:["입자 침식 φ = c(y) x (u(y) x edge(y) x 부하)^n x 부하  (고체 농도 c는 부하에 비례, 속도 u는 부하에 비례)","노: c(y) = 1 (밀집 구간 y<1.5 m), 그 위에서 exp[-(y-1.5)/5] (고체 농도의 지수 감쇠), u = 0.35 (밀집) 또는 1","경계 효과: 내화물 끝(y=7 m) 위에서 edge = 1 + 4 x exp[-(y-7)/0.8] (돌출 내화물이 하강 입자를 꺾음), 수냉벽은 마모 계수 x0.5","사이클론 몸통: v = v입구 x exp[-(1-a)] (벽 마찰로 감쇠, a=입구에서 아래로 갈수록 0), 입구 타깃벽은 x1.5","사이클론 콘: v ∝ r^-0.5, 벽 농도 ∝ 1/r (각운동량 보존으로 끝으로 갈수록 빨라지고 농도 집중)","딥레그·루프실·리턴 레그: 밀집 하강 흐름이라 0.07 x 부하"],
+par:[["침식 지수 n","2.5","문헌 일반 범위(2~3.5) 안의 가정"],["고체 농도 감쇠 길이","5 m","가정"],["사이클론 입구 속도비 / 농도비","2.5 / 0.05","가정"],["경계 효과 E, 감쇠 길이","4, 0.8 m","가정"],["벽 마찰 감쇠 계수","1.0","가정"],["배경 마모 (침식 외 열·화학)","0.1 x 부하^0.5","가정"],["K 보정","사이클론 몸통 가장 닳는 곳이 48개월에 교체 기준","가정"]]};
+/* RFCC 재생기 */
+EQS.rfcc.ph={use:[1,1,1,1,1,1],anchor:{i:4,life:36},base:0.2,
+rate:(i,s,sd,L)=>{const z=EQS.rfcc.zones[i],p=phPos(z,s),y=p[1],t=p[2],n=2.5;
+if(i===4)return phCyc(t,L,3.0,0.1);
+if(y<2.5)return Math.pow(L,n)*(0.35+0.65*Math.exp(-Math.abs(y-1.1)/0.8));
+if(y<7.5)return Math.pow(L,n)*(0.2+0.8*Math.exp(-(7.5-y)/0.7));
+const r=phLerp(z.r[0],z.r[1],t),u=Math.min(3,Math.pow(4/r,2));return Math.exp(-(y-7.5)/3)*Math.pow(u*L,n)*L},
+eq:["입자 침식 (CFB와 같은 형태): φ = c x (u x 부하)^n","에어그리드(y=1.1 m)에서 가까운 구간: φ = 0.35 + 0.65 x exp[-|y-1.1|/0.8] (공기 제트 영향)","덴스 베드: φ = 0.2 + 0.8 x exp[-(7.5-y)/0.7] (베드 표면 거품 분출 구간이 가장 닳음)","희박상: φ = exp[-(y-7.5)/3] x (u)^n, u = 겉보기 속도 ∝ 1/단면적 (콘에서 지름이 커지면 속도 감소), 위쪽은 3으로 제한","사이클론: 몸통 상단(입구)과 콘 끝에서 속도와 농도가 집중 (CFB와 같은 식, 입구 속도비 3.0, 농도비 0.1)"],
+par:[["침식 지수 n","2.5","가정"],["베드 표면 분출 두께","0.7 m","가정"],["희박상 농도 감쇠 길이","3 m","가정"],["사이클론 속도비 / 농도비","3.0 / 0.1","가정"],["배경 마모 (침식 외 열·화학)","0.2 x 부하^0.5","가정"],["K 보정","사이클론 가장 닳는 곳이 36개월에 교체 기준","가정"]]};
+/* 가열로: 천장(A)은 연소 복사 아레니우스, 노상(B)은 용융 스케일(파야라이트 공융 1177 °C) 침식 */
+const RHT=[[0,650],[2,750],[12,1050],[14,1200],[28,1280],[40,1240],[42,1100]];
+EQS.rh.ph={use:[1,1,1,1,1],anchor:{i:3,life:36},
+rate:(i,s,sd,L)=>{const x=phPos(EQS.rh.zones[i],s)[0],T=phTab(RHT,x)+60*(L-1);
+if(i===0||i===4)return 0.25*Math.sqrt(L);
+if(sd>0){const melt=1/(1+Math.exp(-(T-1177)/20));return 0.1*L+(0.6+0.4*x/40)*melt*Math.sqrt(L)*phArr(T,1250,85e3)}
+return 0.2*Math.pow(L,1.2)*phArr(T,1250,200e3)},
+eq:["노상(B): φ = 0.1 x 부하 + (0.6+0.4 x x/40) x 용융(T) x 부하^0.5 x exp[-Q/(2R) x (1/T - 1/Tref)]","용융(T) = 1/(1+exp[-(T-1177)/20]): 1177 °C 이상에서 스케일이 녹아 벽돌을 침식","스케일 성장은 포물선형(성장량 ∝ exp[-Q/2RT]), 처리량 ∝ 부하라서 총량은 부하^0.5, 스케일이 노 길이 방향으로 쌓여 (0.6+0.4x/40)배","천장(A): φ = 0.2 x 부하^1.2 x exp[-Ea/R x (1/T - 1/Tref)] (연소 복사, 아레니우스형)","장입구·도어 구간은 기계 마모 0.25 x 부하^0.5","T(x) = 노온 프로파일 + 60 °C x (부하-1)"],
+par:[["Q (스케일 성장 활성화 에너지)","170 kJ/mol","가정(일반 범위)"],["Ea (천장)","200 kJ/mol","가정"],["스케일 용융 온도","1177 °C","문헌 일반값(FeO-SiO2 공융)"],["노온 프로파일 (x m: °C)","0:650, 2:750, 12:1050, 14:1200, 28:1280, 40:1240, 42:1100","가정"],["부하 1 변화당 온도","60 °C","가정"],["K 보정","균열대 노상이 36개월에 교체 기준","가정"]]};
+/* 고로 노상: 용선 응고 등온선(약 1150 °C)까지 침식된다고 보는 평형 모델, 평형에 시간상수로 접근 */
+EQS.bf.ph={use:[0,0,0,0,0,0],kin:{0:true},tau:60,fu:[1.35,1.3,1.1,1.25,1.0,0.9,0.85,0.8],
+weq:(i,s,sd,L)=>{const p=EQS.bf.ph,h=100*Math.pow(p.fu[s]*L,0.8),Ti=1500+80*(L-1),q=h*(Ti-1150),d=Math.max(0,15*((1150-100)/q-0.0045));return Math.max(0,Math.min(1,1-d/0.85))},
+eq:["평형 잔여 두께 δ* = k x [ (T등온선 - T냉각면) / ( h x (T용선 - T등온선) ) - R냉각 ]  (벽돌 안쪽 면이 1150 °C 등온선에 닿는 곳에서 침식이 멈춤)","평형 침식 비율 w평형 = 1 - δ*/δ0, 열전달계수 h = h0 x (국부 유속비 x 부하)^0.8, T용선 = 1500 + 80 x (부하-1) °C","시간 진행: dw/dt = (w평형 - w)/τ (평형으로 접근, 되돌아가지 않음)","국부 유속비: 코끼리발(바닥 모서리) 1.35, 출선구 높이 1.25, 위쪽 0.8"],
+par:[["k (카본 블록 열전도율)","15 W/mK","가정(일반 범위)"],["T등온선 / T냉각면","1150 / 100 °C","등온선은 일반 개념, 냉각면은 가정"],["R냉각 (냉각·철피 열저항)","0.0045 m²K/W","가정"],["h0 (용선 대류 열전달)","100 W/m²K","가정"],["δ0 (노상 벽 두께)","850 mm","가정"],["τ (평형 접근 시간)","60개월","가정"],["유속비 분포","1.35, 1.3, 1.1, 1.25, 1.0, 0.9, 0.85, 0.8 (아래→위)","가정"]],
+note2:"노상만 수식으로 계산하고, 보시·벨리·샤프트·노구는 구역별 수명 가정이에요."};
 
 </script>
 </body>
