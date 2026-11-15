@@ -43,6 +43,13 @@ details summary{cursor:pointer;font-weight:500;font-size:15px}
 .tabs button{padding:7px 14px;border:0.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;font-size:14px;cursor:pointer}
 .tabs button.on{background:var(--ink);color:var(--bg)}
 select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;font-size:14px;margin-top:4px}
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:8px 0;font-size:13px}
+.chip{padding:2px 9px;border-radius:999px;color:#fff;font-size:11px;white-space:nowrap}
+.step{background:var(--bg);border:0.5px solid var(--line);border-radius:8px;padding:3px 8px}
+.arr{color:var(--mut)}
+.an{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.an div{background:var(--bg);border-radius:8px;padding:8px 10px;font-size:12.5px;border-left:4px solid var(--line)}
+.an b{display:block;margin-bottom:2px}
 </style>
 </head>
 <body>
@@ -104,6 +111,9 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 <tr><td>쇳물 위쪽</td><td>튐과 열응력 균열이 원인인데, 모델은 계산하지 않아요.</td></tr>
 <tr><td>바닥</td><td>벽과 같은 7층으로 열 저장만 계산하고, 바닥 침식은 계산하지 않아요.</td></tr>
 </table></details></div>
+<div class="card" style="grid-column:1/-1"><h2>스케줄이 래들 내화물에 주는 부하</h2><div id="l_chain"></div><div class="note">수치는 이 대시보드가 실제 모델을 재실행한 결과예요. 열충격 박락은 모델이 계산하지 않아요.</div></div>
+<div class="card"><h2>어떤 인자가 침식을 키우나 (히트당 최대 침식, 기준 대비 %)</h2><div class="box"><canvas id="l_tor"></canvas></div><div class="note">각 인자만 현재 값으로 바꿨을 때의 변화이고, 마지막 막대는 전부 합친 값이에요. 기준은 132.3 t, 보정 출강 온도, 가스·전력 ×1, 대기 1 h예요.</div></div>
+<div class="card"><h2>메커니즘 한눈에 보기</h2><div id="mech_an_l"></div></div>
 </div>
 </div>
 <div id="p_eq" hidden>
@@ -131,6 +141,9 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 <div class="card"><h2>월별 생산 스케줄</h2><div class="box"><canvas id="e_c3"></canvas></div><div class="note">막대는 그 달의 가동 부하(%), 선은 정지·재가동 횟수예요. 마모율은 구역마다 부하^지수(침식·고온)와 정지 횟수(열충격)에 비례하게 반영했어요. 기준(부하 100%, 월 가동 30일, 기준 정지 횟수)에서는 아래 수명과 같아요.</div></div>
 <div class="card"><h2>구역별 잔여 두께</h2><div class="box"><canvas id="e_c1"></canvas></div></div>
 <div class="card" style="grid-column:1/-1"><h2>가동 기간에 따른 잔여 두께 (스케줄 반영)</h2><div class="box"><canvas id="e_c2"></canvas></div></div>
+<div class="card" style="grid-column:1/-1"><h2>스케줄이 내화물에 주는 부하: 이 설비의 메커니즘</h2><div id="e_chain"></div><div class="note">일반적인 마모 메커니즘 설명이에요. 배율을 정하는 부하 지수와 정지 민감도는 가정값이에요.</div></div>
+<div class="card"><h2>지금 스케줄의 마모 속도 배율 (구역별)</h2><div class="box"><canvas id="e_c4"></canvas></div><div class="note">기준(부하 100%, 월 30일, 기준 정지 횟수)을 1.0으로 한 배율이에요. 파랑은 부하·가동 시간(침식·고온) 때문, 보라는 정지·재가동(열충격) 때문이에요. 선택한 달 기준이에요.</div></div>
+<div class="card"><h2>메커니즘 한눈에 보기</h2><div id="mech_an_e"></div></div>
 <div class="card" style="grid-column:1/-1"><details open><summary>구역별 라이닝, 마모 방식, 스케줄 민감도</summary><div id="e_tb" style="overflow-x:auto"></div>
 <div class="note">이 탭의 값은 래들처럼 실제 모델을 실행한 결과가 아니라, 공개 자료의 일반적인 구성과 수명 범위를 바탕으로 한 <b>예시 가정값</b>이에요. 구역 길이, 두께, 수명, 부하 지수(kL), 정지 민감도(cs)는 실제 설비 자료로 바꿔 쓰세요. 스크립트 맨 아래의 <code>EQS</code> 객체를 고치면 돼요. 월 마모율 = (0.6/수명) × [(1−cs) × 부하^kL × 가동일/30 + cs × 정지횟수/기준정지횟수]이고, 수명은 잔여 두께 40%에 닿는 시점이에요.</div></details></div>
 </div>
@@ -217,6 +230,17 @@ const T3=a=>a.filter((_,i)=>i%3===0),TM3=T3(D.Tmeas);
 const c1=new Chart("c1",{type:"line",data:{labels:T3(D.t),datasets:[ln("강철 (모델)","#2a78d6",0,T3(D.Tsteel)),ln("슬래그 (모델)","#eb6834",[6,3],T3(D.Tslag)),{label:"실측",type:"line",showLine:false,pointRadius:2.5,backgroundColor:"#898781",borderColor:"#898781",data:TM3}]},options:base()});
 new Chart("c2",{type:"line",data:{labels:D.t,datasets:[ln("내면","#eb6834",0,D.TIn),ln("외면(철피 쪽)","#2a78d6",0,D.TOut)]},options:base()});
 const c3=new Chart("c3",{data:{labels:[...Array(NR)].map((_,i)=>String(i+1)),datasets:[{type:"bar",label:"침식률",data:[],backgroundColor:[],borderRadius:2},{type:"line",label:"한계 75%",data:Array(NR).fill(75),borderColor:"#898781",borderDash:[5,4],borderWidth:1.5,pointRadius:0}]},options:base({x:{title:{display:true,text:"벽돌 행",color:tc()},ticks:{color:tc(),maxTicksLimit:10},grid:{display:false}},y:{min:0,max:100,ticks:{color:tc(),callback:v=>v+"%"},grid:{color:gc()}}})});
+const CCOL={er:"#2a78d6",ch:"#eb6834",th:"#6250d6",me:"#6d6a64",pos:"#1baf7a"},CNAME={er:"침식",ch:"화학·고온",th:"열충격",me:"기계",pos:"위치"};
+function chainHTML(rows){return(rows||[]).map(r=>'<div class="chain"><span class="chip" style="background:'+CCOL[r.t]+'">'+CNAME[r.t]+'</span>'+r.s.map(x=>'<span class="step">'+x+'</span>').join('<span class="arr">→</span>')+'</div>').join("")}
+const ANALOGY='<div class="an">'+[["er","침식 (깎임)","모래바람이 바위를 깎듯 입자와 흐름이 벽을 갈아요. 속도가 조금만 올라도 마모가 크게 늘어요."],["ch","화학·고온 침식 (녹음)","설탕이 물에 녹듯 슬래그·알칼리·용강에 벽돌이 녹아요. 온도가 높고 흐름이 빠를수록 빨라요."],["th","열충격·열사이클 (갈라짐)","뜨거운 유리잔에 찬물을 부으면 깨지듯, 급냉·급가열이 반복되면 금이 가 조각이 떨어져요. 금이 가면 슬래그가 스며들어 침식 저항도 크게 떨어져요."],["me","기계 (밀림·변형)","장입물 낙하, 쉘 변형, 틈에 낀 분진이 열팽창 때 벽돌을 미는 힘으로 깨져요."]].map(a=>'<div style="border-left-color:'+CCOL[a[0]]+'"><b>'+a[1]+'</b>'+a[2]+'</div>').join("")+'</div>';
+const LCH=[
+{t:"ch",s:["하루 히트 수 ↑ (빈 래들 대기 ↓)","벽이 덜 식음 (벽 안쪽면 대기 0.25 h 약 1436 °C, 6 h 약 1327 °C)","쇳물 접촉면이 더 뜨거움","용해 침식 ↑ (히트당 최대 1.10% ↔ 0.88%)"]},
+{t:"th",s:["대기 ↑ (하루 히트 수 ↓)","빈 래들 벽이 식음","찬 벽에 쇳물을 부을 때 급가열","열충격 박락 ↑ (이 모델은 계산하지 않음)"]},
+{t:"ch",s:["전력(아크 가열) ↑","슬래그·강철 온도 ↑","슬래그 라인 MgO 용해 ↑","히트당 최대 침식 0.79% (×0.5) → 1.37% (×1.5)"]},
+{t:"er",s:["가스 교반 ↑","벽면 전단·물질전달 ↑","탄소·MgO가 더 빨리 녹아 나감","히트당 0.94% (×0.5) → 1.14% (×1.5)"]},
+{t:"pos",s:["강철량 ↑","용강 높이 ↑","슬래그 라인이 위로 이동","가장 닳는 행 26번 (110 t) → 35번 (150 t)"]}];
+$("l_chain").innerHTML=chainHTML(LCH);$("mech_an_l").innerHTML=ANALOGY;
+const cT=new Chart("l_tor",{type:"bar",data:{labels:["강철량","출강 온도","교반 가스","전력","대기시간(스케줄)","전부 합친 현재 조합"],datasets:[{data:[],backgroundColor:[]}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc(),callback:v=>v+"%"},grid:{color:gc()}},y:{ticks:{color:tc(),font:{size:11}},grid:{display:false}}}}});
 const T0C=D.Tsteel[0],DX=3.5/37;
 const LV=(m,d)=>m*1000/((8320-0.835*(T0C+d))*Math.PI*1.45*1.45)/DX;
 const i1=(a,x)=>{const n=a.length-1;if(x<=0)return a[0];if(x>=n)return a[n];const k=Math.floor(x),f=x-k;return a[k]*(1-f)+a[k+1]*f};
@@ -225,6 +249,16 @@ const lw=(a,v)=>{let k=0;while(k<a.length-2&&v>a[k+1])k++;return[k,Math.max(0,Ma
 const YB=G.YB.map(r=>r.map(v=>v/1e5)),F27=G.F27.map(r=>r.map(v=>v/1e5)),YZ=F27[13],RAT=F27.map(r=>r.map((v,i)=>YZ[i]>2e-5?v/YZ[i]:1));
 const IYR=G.IY.map(r=>r.map(v=>v/1e5)),RBI=IYR.map(r=>r.map((v,i)=>IYR[2][i]>2e-5?v/IYR[2][i]:1));
 const idleAt=k=>{const i0=SK.idle;if(SK.scen==="dip")return(k>=30&&k<60)?Math.min(6,i0+3):i0;if(SK.scen==="rush")return k>=60?0.25:i0;if(SK.scen==="alt")return k%2?Math.max(0.25,i0-0.5):Math.min(6,i0+1.5);return i0};
+function heatPk(m,d,g,p,idle){const Lt=LV(m,d),L0=LV(132.3,0),I=[...Array(NR).keys()];
+const[k,t0]=lw(G.MF,m),Lb=LV(m,0);
+const yb=I.map(i=>(1-t0)*i1(YB[k],i-Lb+LV(G.MF[k],0))+t0*i1(YB[k+1],i-Lb+LV(G.MF[k+1],0)));
+const ax=[lw(G.dT,d),lw(G.gas,g),lw(G.pow,p)],F=Array(NR).fill(0);
+for(let c=0;c<8;c++){let w=1,ix=[];for(let q=0;q<3;q++){const b=(c>>q)&1;ix.push(ax[q][0]+b);w*=b?ax[q][1]:1-ax[q][1]}
+if(w===0)continue;const r=RAT[(ix[0]*3+ix[1])*3+ix[2]],Lk=LV(132.3,G.dT[ix[0]]);I.forEach(i=>{F[i]+=w*i1(r,i-Lt+Lk)})}
+const[kk,tt]=lw(G.ID,idle);let mx=0;I.forEach(i=>{const r=(1-tt)*i1(RBI[kk],i-Lt+L0)+tt*i1(RBI[kk+1],i-Lt+L0);mx=Math.max(mx,yb[i]*F[i]*r)});return mx}
+function torUpdate(){const b=heatPk(132.3,0,1,1,1.0),idN=idleAt(N);
+const v=[heatPk(P.mass,0,1,1,1.0),heatPk(132.3,P.dT,1,1,1.0),heatPk(132.3,0,P.gas,1,1.0),heatPk(132.3,0,1,P.pow,1.0),heatPk(132.3,0,1,1,idN),heatPk(P.mass,P.dT,P.gas,P.pow,idN)].map(x=>Math.round((x/b-1)*1000)/10);
+cT.data.datasets[0].data=v;cT.data.datasets[0].backgroundColor=v.map((x,i)=>i===5?"#898781":x>=0?"#eb6834":"#2a78d6");cT.update()}
 function calc(){const m=P.mass,d=P.dT,g=P.gas,p=P.pow,Lt=LV(m,d),L0=LV(132.3,0),I=[...Array(NR).keys()];
 const[k,t0]=lw(G.MF,m),Lb=LV(m,0);
 const yb=I.map(i=>(1-t0)*i1(YB[k],i-Lb+LV(G.MF[k],0))+t0*i1(YB[k+1],i-Lb+LV(G.MF[k+1],0)));
@@ -247,7 +281,7 @@ I.forEach(i=>{const x=i-Lt+L0;for(let l=0;l<7;l++)TT[i][l]+=(1-it)*(iT(G.IT[ik],
 HS=m*1000/((8320-0.835*(T0C+d))*Math.PI*1.45*1.45);setLiq();
 c1.data.datasets[0].data=Ts;c1.data.datasets[1].data=Tg;c1.update();
 let se=0,sn=0;Ts.forEach((v,i)=>{if(TM3[i]>100){se+=(v-TM3[i])**2;sn++}});
-$("k5").textContent=Math.round(Math.sqrt(se/sn))+" °C";$("k4").textContent=(ymax*100).toFixed(2)+"%";$("k6").textContent=days.toFixed(1)+" 일"}
+$("k5").textContent=Math.round(Math.sqrt(se/sn))+" °C";$("k4").textContent=(ymax*100).toFixed(2)+"%";$("k6").textContent=days.toFixed(1)+" 일";torUpdate()}
 function update(){calc();const e=E(),em=Math.max(...e),st=$("st");
 $("k1").textContent="#"+wr;$("k2").textContent=Math.round(em*100)+"%";$("k3").textContent=Math.max(0,Math.round((LIM-em)/ymax));
 if(em>=LIM){st.style.cssText="background:var(--bad);color:var(--badt)";st.textContent="마모 한계 도달: 이 래들은 다음 히트에 쓰면 안 돼요 (코드 기준 75%)."}
@@ -448,7 +482,7 @@ s+=`<rect x="${x0+(z.w+z.ins)*k}" y="6" width="${z.sh*k}" height="36" fill="#888
 $("e_xs").innerHTML=s;
 const rem=1-e;$("e_xt").textContent=`${qZ+1}. ${z.n} (${z.T}): 작업 라이닝 ${(e*100).toFixed(0)}% 마모, ${(rem*100).toFixed(0)}% 남음 (${(z.w*rem).toFixed(0)} / ${z.w} mm).`;
 $("e_xtb").innerHTML=`<table><tr><th>층</th><th>현재 두께 mm</th><th>재질</th></tr><tr><td>작업 라이닝</td><td>${(z.w*rem).toFixed(0)}</td><td>${z.mat}</td></tr>${z.ins?`<tr><td>단열층</td><td>${z.ins}</td><td>단열 캐스터블·보드</td></tr>`:""}<tr><td>철피</td><td>${z.sh}</td><td>탄소강</td></tr></table>`}
-let WZ=[],CW=[],qScen="steady",qLoad=100,qDays=30,qStops=0.4,qC3=null;
+let WZ=[],CW=[],qScen="steady",qLoad=100,qDays=30,qStops=0.4,qC3=null,qC4=null;
 function sprof(m){const Q=EQS[qKey],L0=qLoad/100,D0=qDays/30,k=m%12;let L=L0,D=D0,S=qStops;
 if(qScen==="dip"&&k>=4&&k<=7){L*=0.65;D*=0.8}else if(qScen==="season")L*=1+0.25*Math.sin(2*Math.PI*k/12);else if(qScen==="stops"){S=Math.max(S*3,S+0.2);D*=0.93}else if(qScen==="surge"&&k>=3&&k<=8)L*=1.15;
 return{L,D,S}}
@@ -469,18 +503,23 @@ qC1.data.datasets[0].data=rem.map(v=>Math.round(v*100));qC1.data.datasets[0].bac
 const lab=qC2.data.labels;
 qC2.data.datasets.forEach((d,i)=>{if(i<Z.length)d.data=lab.map(t=>Math.round(100*(1-CW[i][Math.min(t,mx+1)])));else if(i===Z.length)d.data=lab.map(t=>t===qM?100:null);else d.data=lab.map(()=>Math.round(qR*100))});
 qC3.data.datasets[0].data=lab.map(t=>Math.round(sprof(t).L*sprof(t).D*100));qC3.data.datasets[1].data=lab.map(t=>Math.round(sprof(t).S*10)/10);
-qC1.update();qC2.update();qC3.update()}
+const pp=sprof(qM);
+qC4.data.datasets[0].data=Z.map(z=>{const cs=z.cs==null?Q.cs:z.cs,kL=z.kL==null?Q.kL:z.kL;return Math.round((1-cs)*Math.pow(pp.L,kL)*pp.D*100)/100});
+qC4.data.datasets[1].data=Z.map(z=>{const cs=z.cs==null?Q.cs:z.cs;return Math.round(cs*pp.S/Q.S0*100)/100});
+qC1.update();qC2.update();qC3.update();qC4.update()}
 const QCOL=["#2a78d6","#eb6834","#1baf7a","#6250d6","#b8860b","#d03b3b","#898781","#0e8f8f"];
 function qInit(k){qKey=k;const Q=EQS[k];qM=Q.def;qZ=Math.min(qZ,Q.zones.length-1);qScen="steady";qLoad=100;qDays=30;qStops=Q.S0;
 document.querySelectorAll("#seg5 button").forEach(c=>c.classList.toggle("on",c.dataset.m==="steady"));
 $("eq_sub").textContent=Q.sub;$("m").max=Q.max;$("m").value=qM;$("o_m").textContent=qM;
 $("ld").value=100;$("o_ld").textContent=100;$("dy").value=30;$("o_dy").textContent=30;$("sp").value=qStops;$("o_sp").textContent=qStops.toFixed(1);
 $("zsel").innerHTML=Q.zones.map((z,i)=>`<option value="${i}">${i+1}. ${z.n}</option>`).join("");$("zsel").value=qZ;
-if(qC1)qC1.destroy();if(qC2)qC2.destroy();if(qC3)qC3.destroy();
+if(qC1)qC1.destroy();if(qC2)qC2.destroy();if(qC3)qC3.destroy();if(qC4)qC4.destroy();
 qC1=new Chart("e_c1",{data:{labels:Q.zones.map((z,i)=>(i+1)+" "+z.n),datasets:[{type:"bar",label:"잔여 두께",data:[],backgroundColor:[],borderRadius:3},{type:"line",label:"교체 기준",data:[],borderColor:"#898781",borderDash:[5,4],borderWidth:1.5,pointRadius:0}]},options:base({x:{ticks:{color:tc(),font:{size:10},maxRotation:40},grid:{display:false},title:{display:false}},y:{min:0,max:100,ticks:{color:tc(),callback:v=>v+"%"},grid:{color:gc()}}})});
 const lab=[...Array(Q.max+1)].map((_,i)=>i);
 qC2=new Chart("e_c2",{data:{labels:lab,datasets:[...Q.zones.map((z,i)=>({type:"line",label:(i+1)+" "+z.n,borderColor:QCOL[i%8],borderWidth:2,pointRadius:0,data:[]})),{type:"bar",label:"현재",data:[],backgroundColor:"#d03b3b",barThickness:2},{type:"line",label:"교체 기준",data:[],borderColor:"#898781",borderDash:[5,4],borderWidth:1.5,pointRadius:0}]},options:base({x:{ticks:{color:tc(),maxTicksLimit:10},grid:{display:false},title:{display:true,text:"개월",color:tc()}},y:{min:0,max:100,ticks:{color:tc(),callback:v=>v+"%"},grid:{color:gc()}}})});
 qC3=new Chart("e_c3",{data:{labels:lab,datasets:[{type:"bar",label:"가동 부하 (%)",data:[],backgroundColor:"#2a78d6",yAxisID:"y"},{type:"line",label:"정지·재가동 (회/월)",data:[],borderColor:"#eb6834",borderWidth:2,pointRadius:0,stepped:true,yAxisID:"y2"}]},options:base({x:{ticks:{color:tc(),maxTicksLimit:10},grid:{display:false},title:{display:true,text:"개월",color:tc()}},y:{min:0,ticks:{color:tc()},grid:{color:gc()}},y2:{position:"right",min:0,ticks:{color:tc()},grid:{display:false}}})});
+qC4=new Chart("e_c4",{data:{labels:Q.zones.map((z,i)=>(i+1)+" "+z.n),datasets:[{type:"bar",label:"부하·가동 시간 (침식·고온)",data:[],backgroundColor:"#2a78d6",stack:"s"},{type:"bar",label:"정지·재가동 (열충격)",data:[],backgroundColor:"#6250d6",stack:"s"},{type:"line",label:"기준 1.0",data:Q.zones.map(()=>1),borderColor:"#898781",borderDash:[5,4],borderWidth:1.5,pointRadius:0}]},options:base({x:{stacked:true,ticks:{color:tc(),font:{size:10},maxRotation:40},grid:{display:false},title:{display:false}},y:{stacked:true,min:0,ticks:{color:tc(),callback:v=>"×"+v},grid:{color:gc()}}})});
+$("e_chain").innerHTML=chainHTML(Q.ch);
 $("e_tb").innerHTML="<table><tr><th>구역</th><th>온도</th><th>작업 라이닝 재질</th><th>두께 mm</th><th>주요 마모 원인</th><th>수명 (개월, 가정)</th><th>부하 지수 kL</th><th>정지 민감도 cs</th></tr>"+Q.zones.map((z,i)=>`<tr><td>${i+1}. ${z.n}</td><td>${z.T}</td><td>${z.mat}</td><td>${z.w}${z.ins?" + 단열 "+z.ins:""}</td><td>${z.mech}</td><td>${z.life}</td><td>${z.kL==null?Q.kL:z.kL}</td><td>${Math.round((z.cs==null?Q.cs:z.cs)*100)}%</td></tr>`).join("")+"</table>";
 qRender()}
 function showTab(k){document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));
@@ -506,6 +545,42 @@ Object.assign(EQS.bf,{S0:0.03,kL:2,cs:0.05});
 Object.assign(EQS.sr,{S0:0.1,kL:1.5,cs:0.25});
 Object.assign(EQS.ab,{S0:0.1,kL:1,cs:0.05});EQS.ab.zones[2].kL=2;
 Object.assign(EQS.cfb,{S0:0.3,kL:2.5,cs:0.15});EQS.cfb.zones[4].kL=3;
+$("mech_an_e").innerHTML=ANALOGY;
+/* 스케줄 -> 내화물 부하 메커니즘 (t: er 침식, ch 화학·고온, th 열충격·열사이클, me 기계, pos 위치) */
+EQS.kiln.ch=[
+{t:"ch",s:["부하 ↑ (공급량·연료 ↑)","소성대 온도와 클링커 액상량 ↑, 코팅(보호막) 불안정","액상이 벽돌에 스며 녹임","소성대 화학·고온 침식 ↑"]},
+{t:"er",s:["부하 ↑","가스·분진 속도 ↑","원료가 벽을 더 세게 긁음","입구·예열대 마모 ↑"]},
+{t:"th",s:["정지·재가동 ↑","급냉·급가열, 쉘 변형","벽돌 균열, 코팅 탈락","전이대 박락 (정지 많을수록 ↑)"]},
+{t:"ch",s:["원료 알칼리(K, Na, S, Cl) ↑","전이대에서 염이 벽돌 기공으로 침투","팽창·박락","상부·하부 전이대 손상"]}];
+EQS.rfcc.ch=[
+{t:"er",s:["처리량 ↑ (공급·공기 ↑)","촉매 순환량과 기체 속도 ↑","입자 충돌 에너지 ↑ (속도의 2~3제곱 가정)","사이클론·덴스 베드 침식 ↑"]},
+{t:"ch",s:["후연소(과산소) 구간","희박상 국부 과열","캐스터블 소결·균열","희박상·상부 헤드 손상"]},
+{t:"th",s:["정지(턴어라운드)·건조 승온","이중 라이닝(침식층+단열층) 열팽창 차이","층간 박리","전이 콘·덴스 베드 박락"]}];
+EQS.inc.ch=[
+{t:"th",s:["폐기물 발열량·투입량 변동","킬른 온도가 오르내림","반복 열응력","연소대 균열·박락"]},
+{t:"ch",s:["투입량 ↑ (산·알칼리·염 폐기물)","용융 바텀 애시와 알칼리 증가","벽돌에 침투·슬래깅","입구·출구·연소대 침식 ↑"]},
+{t:"me",s:["킬른 회전 + 정지·재가동","벽돌 열팽창과 쉘 변형이 맞물림","벽돌 사이 압축·균열","연소대 기계 손상"]},
+{t:"ch",s:["2차 연소실 고온 유지","비산회가 벽에 붙고 알칼리·염소가 침투","슬래깅·부식","2차 연소실 하부 손상"]}];
+EQS.rh.ch=[
+{t:"th",s:["압연 간격 ↑·감산 (저화 운전)","노온이 내려갔다 다시 오름","벽·천장 반복 열응력","천장·버너 포트·도어 박락 (정지 많을수록 ↑)"]},
+{t:"ch",s:["생산량 ↑ (연소량 ↑)","강재 표면 산화철(스케일) 증가","녹은 스케일이 노상 벽돌 침투","균열대 노상 침식 ↑"]},
+{t:"me",s:["장입·추출 횟수 ↑ (워킹빔 가동)","강재 하중·충격","노상·스키드 주변 마모","노상 기계 마모"]}];
+EQS.bf.ch=[
+{t:"er",s:["생산성 ↑ (송풍량·미분탄 PCI ↑)","장입물 하강 속도와 가스 속도 ↑","장입물이 벽을 더 세게 긁음","보시·하부 샤프트 마모 ↑"]},
+{t:"ch",s:["출선 빈도 ↑·용선 온도 ↑","노상 용선 유속·온도 ↑","용선이 카본 블록에 침투·용해","노상 코끼리발 침식 ↑"]},
+{t:"th",s:["휴풍·감풍 (정지) ↑","하부 샤프트·노상이 급냉·급가열","균열·박락 (정지 많을수록 ↑)","하부 샤프트·노상 손상"]}];
+EQS.sr.ch=[
+{t:"ch",s:["암모니아 부하 ↑","공기·가스 유량과 연소 온도 ↑","알루미나 휘발·재응축, 국부 과열","연소 영역 침식·핫스팟"]},
+{t:"th",s:["트립(긴급 정지)","급냉으로 벽돌·캐스터블 수축","균열·분절 뒤 틈 생김","상부 콘·돔 박락, 가스 우회로 핫스팟"]},
+{t:"me",s:["촉매 하중 + 열팽창","돔과 촉매층 사이 압축 응력","벽돌 균열","촉매 지지 돔 손상"]}];
+EQS.ab.ch=[
+{t:"er",s:["보일러 부하 ↑","배가스량·슬러리 순환량 ↑","슬러리 입자가 벽을 더 세게 침","스프레이 구역 라이닝 마모 ↑"]},
+{t:"ch",s:["보일러 부하 ↓","배가스 온도 ↓ (산 노점 근접)","응축된 산성 액이 라이닝에 닿음","입구 덕트·혼합 구역 산 부식 ↑"]},
+{t:"th",s:["정지 ↑","건조와 재습윤 반복","라이닝(고무·글라스) 박리·균열","반응 탱크·덕트 접합부 손상"]}];
+EQS.cfb.ch=[
+{t:"er",s:["부하 ↑ (출력 ↑)","유동화 속도와 입자 순환량 ↑","입자 충돌 에너지 ↑ (속도의 2~3제곱 가정)","수냉벽-내화물 경계·사이클론 침식 ↑"]},
+{t:"th",s:["부하 추종·기동/정지 ↑","열 사이클","미세 분진이 틈에 쌓여 열팽창 때 벽돌을 밂","내화물 박락·균열"]},
+{t:"ch",s:["연료 알칼리·회분 ↑","재가 뭉치고 알칼리가 침투","부식·뭉침","루프실·리턴 레그 손상"]}];
 
 </script>
 </body>
