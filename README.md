@@ -83,3 +83,28 @@ streamlit run app.py
 ---
 
 <sub>Portfolio note · 모델 계산 결과, 가정 계수, 합성 데이터, 현장 검증 상태를 구분해 설명합니다.</sub>
+
+## 9. 생산 시퀀스·정비 준비 탭
+
+대시보드에 기존 설비 분석 및 온톨로지 탭을 유지하면서 별도 **생산 시퀀스·정비 준비** 탭을 추가했습니다.
+
+- 설비 선택: 기존 9개 설비(래들, 로타리 킬른, RFCC, 소각로, 가열로, 고로, 2차 개질로, Claus 반응기, CFB)
+- 생산 시퀀스: 제품/원료 단계, 분위기 변화, 부하, 운전시간을 입력하고 순서를 편집
+- 시퀀스 유형: 정상 연속생산, 제품·원료 전환, 잦은 기동·정지, 단기 증산·고부하
+- 정비 준비: 범위 확정 → 기술·자재 준비 → 정지 전 기록·안전계획 → 격리 → 진입·검사 → 철거 → 설치·ITP → 양생·건조 준비 → Dry-out → 재가동 → 사후 검토
+- 설비별 집중 점검 항목, 담당 부서, 완료 확인점(hold point), 체크리스트 및 인쇄 기능
+- 계획 정지일을 입력하면 단계별 상대 일정을 달력 날짜로 표시
+
+구현은 `maintenance-planning.js`에 독립 모듈로 분리했습니다. 기존 마모 계산·도면·온톨로지 로직은 변경하지 않았습니다. 입력한 생산 시퀀스와 체크 상태는 현재 브라우저 세션 기반이며 ERP/MES, 서버 DB와 연동되거나 영구 저장되지 않습니다.
+
+### 참고 자료와 적용 한계
+
+- [Refractory Materials Repairer – SKILL.md](https://github.com/wonsukchoi/domain-experts/blob/main/roles/refractory-materials-repairer/SKILL.md): 재질·열화 진단·Dry-out 의사결정 프레임워크
+- [API 982 Body of Knowledge](https://www.api.org/-/media/files/certification/icp/icp-certification-programs/982/bok_982_202504_final.pdf): 검사·평가·품질관리 역량 범위 참고 자료
+- [HWI – Curing & Dryout](https://thinkhwi.com/curing-dryout-refractories/): 제조사 양생·건조 안내
+- [RESCO – Conventional Castable Heating Procedure](https://www.rescoproducts.com/docs/default-source/data-sheets-us/dry-out/100-heating-procedures--conventional-castables.pdf): 특정 제품군의 건조 절차 예시
+- [Maintain Kiln Refractory – Training Guide](https://training.gov.au/TrainingComponentFiles/PMC10/PMC562075B_R1.pdf): 킬른 정비 작업 및 준비 교육자료
+- [Ladle Refractory Predictor – GitHub](https://github.com/altugrakay-commits/Ladle-Refractory-Predictor): 래들 운전 이력 기반 열화 위험 평가 예시
+- [API RP 982 ballot draft – searchable copy](https://studylib.net/doc/27633586/api-982-e1-inspection-and-assessment-of-refractory-lining): ITP·검사 기록 항목을 이해하기 위한 초안 검색본. 정식 표준 원문이나 최신 개정본을 대체하지 않습니다.
+
+**중요:** 본 탭의 단계·일정은 정비계획 템플릿입니다. Dry-out은 모든 재질에 공통인 고정 온도·승온률을 사용하지 않습니다. 캐스터블의 제품명·두께·수분·시공법에 따른 제조사 승인 곡선, 설비 라이선서 절차 및 현장 승인 ITP를 반드시 적용해야 합니다. 안전 격리·가스프리·밀폐공간 진입·철거·재가동은 자격 보유자와 현장 책임자의 승인 대상입니다.
