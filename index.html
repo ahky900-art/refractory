@@ -67,6 +67,7 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 .onto-node text{font-size:12px;fill:#fff;pointer-events:none}
 .onto-edge{fill:none;stroke:#9a9a94;stroke-width:1.6;opacity:.8}
 .onto-edge.relation{stroke-dasharray:5 4;stroke:#1baf7a}
+.onto-edge-label{font-size:10px;fill:var(--mut);paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round;pointer-events:none}
 .onto-info{min-height:90px;background:var(--card);border-radius:10px;padding:12px;margin-top:10px}
 .onto-info h3{font-size:14px;margin:0 0 6px}.onto-info p{font-size:13px;color:var(--mut);margin:4px 0}
 @media(max-width:650px){.onto-canvas svg{min-width:820px}}
@@ -652,24 +653,59 @@ const ONTO_LADLE_LINKS={ch:[0,1],th:[1,2],er:[0,1,2],pos:[0]};
 function ontoEsc(v){return String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function ontoData(k){if(k==="ladle")return{name:"래들",zones:ONTO_LADLE_ZONES,ch:LCH,links:ONTO_LADLE_LINKS,sub:"래들 공개 계산 모델의 메커니즘 체인과 대표 부위의 개념적 연결"};const Q=EQS[k];return{name:Q.name,zones:Q.zones,ch:Q.ch||[],links:ONTO_LINKS[k]||{},sub:Q.sub||""}}
 function ontoRender(){
-const sel=$("onto_equipment");if(!sel.options.length)sel.innerHTML='<option value="ladle">래들</option>'+Object.keys(EQS).map(k=>'<option value="'+k+'">'+ontoEsc(ONTO_NAMES[k]||EQS[k].name)+'</option>').join("");
+const sel=$("onto_equipment");
+if(!sel.options.length)sel.innerHTML='<option value="ladle">래들</option>'+Object.keys(EQS).map(k=>'<option value="'+k+'">'+ontoEsc(ONTO_NAMES[k]||EQS[k].name)+'</option>').join("");
 const k=sel.value||"ladle",D0=ontoData(k),rows=D0.ch||[],zones=D0.zones||[];
-$("onto_title").textContent=D0.name+" · 부위별 메커니즘 온톨로지";$("onto_summary").textContent=D0.sub+" · "+rows.length+"개 메커니즘 경로 / "+zones.length+"개 부위 노드";
-const mode=$("onto_relation").value||"all",filtered=rows.filter(r=>mode==="all"||(mode==="wear"&&["er","me","pos"].includes(r.t))||(mode==="thermal"&&r.t==="th")||(mode==="chemical"&&r.t==="ch"));
-const H=Math.max(540,filtered.length*150+90),W=1200,nodeW=[190,190,190,205,215],xs=[20,250,480,710,965],nodeH=76,zoneY=zones.map((z,i)=>70+(i+.5)*(H-100)/Math.max(1,zones.length));
+$("onto_title").textContent=D0.name+" · 부위별 메커니즘 온톨로지";
+$("onto_summary").textContent=D0.sub+" · "+rows.length+"개 메커니즘 경로 / "+zones.length+"개 설비 부위 노드";
+const mode=$("onto_relation").value||"all";
+const filtered=rows.filter(r=>mode==="all"||(mode==="wear"&&["er","me","pos"].includes(r.t))||(mode==="thermal"&&r.t==="th")||(mode==="chemical"&&r.t==="ch"));
+const H=Math.max(540,filtered.length*150+100),W=1200,nodeW=[190,190,190,205,215],xs=[20,250,480,710,965],nodeH=76;
+const zoneY=zones.map((z,i)=>70+(i+.5)*(H-100)/Math.max(1,zones.length));
 let edges="",nodes="",meta={},idx=0;
-const addNode=(x,y,w,h,color,title,desc,type)=>{const id="on"+(idx++);meta[id]={title,desc,type};nodes+='<g class="onto-node" data-oid="'+id+'"><rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="10" fill="'+color+'" stroke="'+color+'"/><text x="'+(x+10)+'" y="'+(y+25)+'"><tspan font-weight="700">'+ontoEsc(title.slice(0,25))+'</tspan><tspan x="'+(x+10)+'" dy="20">'+ontoEsc(desc.slice(0,25))+'</tspan></text></g>';};
-filtered.forEach((r,ri)=>{const y=55+ri*150,steps=r.s||[],type=r.t||"me",color=ONTO_COL[type]||"#6d6a64";steps.slice(0,4).forEach((step,j)=>{const col=j===0?0:j===1?1:j===2?2:3,cat=j===0?"운전 조건":j===3?"손상 결과":j===2?"손상 메커니즘":"공정 상태";addNode(xs[col],y,nodeW[col],nodeH,j===0?"#2a78d6":j===3?"#eb6834":j===2?color:"#6250d6",cat,step,type);if(j>0)edges+='<path class="onto-edge" d="M '+(xs[j-1]+nodeW[j-1])+' '+(y+nodeH/2)+' C '+(xs[j-1]+nodeW[j-1]+25)+' '+(y+nodeH/2)+', '+(xs[j]-25)+' '+(y+nodeH/2)+', '+xs[j]+' '+(y+nodeH/2)+'"/>';});
-((D0.links&&D0.links[type])||[]).forEach(zi=>{if(!zones[zi])return;const zy=zoneY[zi],sx=xs[3]+nodeW[3],sy=y+nodeH/2,tx=xs[4],ty=zy+nodeH/2;edges+='<path class="onto-edge relation" d="M '+sx+' '+sy+' C '+(sx+55)+' '+sy+', '+(tx-55)+' '+ty+', '+tx+' '+ty+'"/>';});
+const addNode=(x,y,w,h,color,title,desc,type,extra={})=>{
+const id="on"+(idx++);meta[id]={title,desc,type,extra};
+nodes+='<g class="onto-node" data-oid="'+id+'"><title>'+ontoEsc(title+" · "+desc)+'</title><rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="10" fill="'+color+'" stroke="'+color+'"/><text x="'+(x+10)+'" y="'+(y+25)+'"><tspan font-weight="700">'+ontoEsc(title.slice(0,25))+'</tspan><tspan x="'+(x+10)+'" dy="20">'+ontoEsc(desc.slice(0,25))+'</tspan></text></g>';
+};
+const edgeLabel=(x,y,label)=>'<text class="onto-edge-label" x="'+x+'" y="'+y+'" text-anchor="middle">'+ontoEsc(label)+'</text>';
+filtered.forEach((r,ri)=>{
+const y=55+ri*150,steps=r.s||[],type=r.t||"me",color=ONTO_COL[type]||"#6d6a64",linked=(D0.links&&D0.links[type])||[];
+steps.slice(0,4).forEach((step,j)=>{
+const col=j===0?0:j===1?1:j===2?2:3,cat=j===0?"운전 조건":j===3?"손상 결과":j===2?"손상 메커니즘":"공정 상태";
+const fill=j===0?"#2a78d6":j===3?"#eb6834":j===2?color:"#6250d6";
+addNode(xs[col],y,nodeW[col],nodeH,fill,cat,step,type,{equipment:D0.name,linkedZones:linked.map(i=>zones[i]&&(zones[i].n||zones[i].name)).filter(Boolean),pathType:type});
+if(j>0){
+const sx=xs[j-1]+nodeW[j-1],tx=xs[j],cy=y+nodeH/2;
+edges+='<path class="onto-edge" marker-end="url(#ontoArrow)" d="M '+sx+' '+cy+' C '+(sx+25)+' '+cy+', '+(tx-25)+' '+cy+', '+tx+' '+cy+'"/>';
+edges+=edgeLabel((sx+tx)/2,cy-9,["","영향·변화","유발·촉진","손상으로 진행"][j]);
+}
 });
-zones.forEach((z,i)=>addNode(xs[4],zoneY[i],nodeW[4],nodeH,"#1baf7a","설비 부위",z.n||z.name,"zone"));
+linked.forEach(zi=>{
+if(!zones[zi])return;
+const zy=zoneY[zi],sx=xs[3]+nodeW[3],sy=y+nodeH/2,tx=xs[4],ty=zy+nodeH/2;
+edges+='<path class="onto-edge relation" marker-end="url(#ontoArrowGreen)" d="M '+sx+' '+sy+' C '+(sx+55)+' '+sy+', '+(tx-55)+' '+ty+', '+tx+' '+ty+'"/>';
+edges+=edgeLabel((sx+tx)/2,(sy+ty)/2-8,"주요 취약 부위");
+});
+});
+zones.forEach((z,i)=>{
+const detail=[z.mat||"재질 미지정",z.T||"온도 미지정",z.w?("작업 두께 "+z.w+" mm"):"두께 미지정",z.mech||"손상 메커니즘 설명 미지정"].join(" · ");
+addNode(xs[4],zoneY[i],nodeW[4],nodeH,"#1baf7a","설비 부위",z.n||z.name||("구역 "+(i+1)),"zone",{equipment:D0.name,detail,material:z.mat||"",temperature:z.T||"",thickness:z.w||null,mechanism:z.mech||""});
+});
 const headings=[["운전 조건",xs[0]],["공정 상태",xs[1]],["손상 메커니즘",xs[2]],["손상 결과",xs[3]],["설비 부위",xs[4]]];
 const head=headings.map(h=>'<text x="'+h[1]+'" y="28" font-size="13" font-weight="700" fill="var(--ink)">'+h[0]+'</text>').join("");
-$("onto_graph").innerHTML='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+ontoEsc(D0.name)+' 온톨로지 그래프">'+head+edges+nodes+'</svg>';
-$("onto_graph").querySelectorAll("[data-oid]").forEach(el=>el.addEventListener("click",()=>{$("onto_graph").querySelectorAll(".onto-node").forEach(n=>n.classList.remove("selected"));el.classList.add("selected");const m=meta[el.dataset.oid];$("onto_info").innerHTML="<h3>"+ontoEsc(m.title)+"</h3><p>"+ontoEsc(m.desc)+"</p><p>노드 유형: "+ontoEsc(m.type==="zone"?"설비 부위":m.type==="er"?"침식":m.type==="ch"?"화학·고온":m.type==="th"?"열충격":m.type==="me"?"기계":"운전·공정 관계")+"</p>";}));
-$("onto_info").innerHTML="<h3>그래프 읽는 방법</h3><p>왼쪽에서 오른쪽으로 운전 조건 → 공정 상태 → 손상 메커니즘 → 손상 결과 → 설비 부위의 경로를 읽습니다. 노드를 누르면 세부 설명을 확인할 수 있습니다.</p>";
+$("onto_graph").innerHTML='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+ontoEsc(D0.name)+' 온톨로지 그래프"><defs><marker id="ontoArrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#9a9a94"/></marker><marker id="ontoArrowGreen" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#1baf7a"/></marker></defs>'+head+edges+nodes+'</svg>';
+$("onto_graph").querySelectorAll("[data-oid]").forEach(el=>el.addEventListener("click",()=>{
+$("onto_graph").querySelectorAll(".onto-node").forEach(n=>n.classList.remove("selected"));el.classList.add("selected");
+const m=meta[el.dataset.oid],e=m.extra||{};
+const typeName=m.type==="zone"?"설비 부위":m.type==="er"?"침식·마모":m.type==="ch"?"화학·고온 반응":m.type==="th"?"열충격":m.type==="me"?"기계적 손상":m.type==="pos"?"위치·하중 영향":"운전·공정 관계";
+let html="<h3>"+ontoEsc(m.title)+"</h3><p><b>설비:</b> "+ontoEsc(e.equipment||D0.name)+"</p><p><b>내용:</b> "+ontoEsc(m.desc)+"</p><p><b>노드 유형:</b> "+ontoEsc(typeName)+"</p>";
+if(e.linkedZones&&e.linkedZones.length)html+="<p><b>연결 부위:</b> "+ontoEsc(e.linkedZones.join(", "))+"</p>";
+if(e.detail)html+="<p><b>부위 속성:</b> "+ontoEsc(e.detail)+"</p>";
+if(e.pathType)html+="<p><b>메커니즘 경로:</b> "+ontoEsc(e.pathType)+"</p>";
+$("onto_info").innerHTML=html;
+}));
+$("onto_info").innerHTML="<h3>그래프 읽는 방법</h3><p>화살표 방향은 운전 조건 → 공정 상태 → 손상 메커니즘 → 손상 결과를 나타냅니다. 녹색 점선 화살표는 해당 손상 경로와 연관된 설비 부위를 나타냅니다. 노드를 선택하면 부위 속성과 연결 경로를 확인할 수 있습니다.</p><p><b>주의:</b> 연결은 현재 설비 설명을 구조화한 정성적 지식 관계입니다. 실측으로 검증된 인과관계나 마모량 기여도는 아닙니다.</p>";
 }
-
 function showTab(k){document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));
 $("p_ladle").hidden=k!=="ladle";$("p_eq").hidden=k==="ladle"||k==="ontology";$("p_ontology").hidden=k!=="ontology";
 if(k==="ontology"){ontoRender();return}
