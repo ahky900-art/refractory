@@ -95,7 +95,7 @@ streamlit run app.py
 - 설비별 집중 점검 항목, 담당 부서, 완료 확인점(hold point), 체크리스트 및 인쇄 기능
 - 계획 정지일을 입력하면 단계별 상대 일정을 달력 날짜로 표시
 
-구현은 `maintenance-planning.js`에 독립 모듈로 분리했습니다. 기존 마모 계산·도면·온톨로지 로직은 변경하지 않았습니다. 입력한 생산 시퀀스와 체크 상태는 현재 브라우저 세션 기반이며 ERP/MES, 서버 DB와 연동되거나 영구 저장되지 않습니다.
+구현은 `maintenance-planning.js`에 독립 모듈로 분리했습니다. 기존 마모 계산·도면·온톨로지 로직은 변경하지 않았습니다. 생산 시퀀스 입력은 계획용으로, 현재 마모 계산 엔진과 자동 연결되지는 않습니다. 입력한 생산 시퀀스와 체크 상태는 현재 브라우저 세션 기반이며 ERP/MES, 서버 DB와 연동되거나 영구 저장되지 않습니다.
 
 ### 참고 자료와 적용 한계
 
@@ -105,6 +105,7 @@ streamlit run app.py
 - [Vocabulary](https://github.com/wonsukchoi/domain-experts/blob/main/roles/refractory-materials-repairer/references/vocabulary.md): 내화물 용어 구분
 - [API 982 Body of Knowledge](https://www.api.org/-/media/files/certification/icp/icp-certification-programs/982/bok_982_202504_final.pdf): 검사·평가·품질관리 역량 범위 참고 자료
 - [HWI – Curing & Dryout](https://thinkhwi.com/curing-dryout-refractories/): 제조사 양생·건조 안내
+- [PCO – Castable Gunning Application Instructions (2026)](https://pco-refractories.com/wp-content/uploads/2026/03/Product_Application_Instructions_Castable_Gunning_EN-2.pdf): 캐스터블 거닝 시공·양생·건조 절차 예시
 - [RESCO – Conventional Castable Heating Procedure](https://www.rescoproducts.com/docs/default-source/data-sheets-us/dry-out/100-heating-procedures--conventional-castables.pdf): 특정 제품군의 건조 절차 예시
 - [Maintain Kiln Refractory – Training Guide](https://training.gov.au/TrainingComponentFiles/PMC10/PMC562075B_R1.pdf): 킬른 정비 작업 및 준비 교육자료
 - [Ladle Refractory Predictor – GitHub](https://github.com/altugrakay-commits/Ladle-Refractory-Predictor): 래들 운전 이력 기반 열화 위험 평가 예시
