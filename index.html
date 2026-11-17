@@ -110,7 +110,7 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 <body>
 <div class="wrap">
 <h1>내화물 마모 대시보드</h1>
-<div class="tabs" id="tabs"><button data-t="ladle" class="on">래들 (실제 모델)</button><button data-t="kiln">로타리 킬른</button><button data-t="rfcc">RFCC 재생기</button><button data-t="inc">소각로</button><button data-t="rh">가열로</button><button data-t="bf">고로</button><button data-t="sr">2차 개질로</button><button data-t="ab">Claus Thermal Reactor</button><button data-t="cfb">화력 보일러</button><button data-t="ontology">온톨로지 그래프</button><button data-t="maintenance">생산 시퀀스·정비 준비</button></div>
+<div class="tabs" id="tabs"><button data-t="ladle" class="on">래들 (실제 모델)</button><button data-t="kiln">로타리 킬른</button><button data-t="rfcc">RFCC 재생기</button><button data-t="inc">소각로</button><button data-t="inc_melt">용융로형</button><button data-t="inc_grate">화격자형</button><button data-t="rh">가열로</button><button data-t="bf">고로</button><button data-t="sr">2차 개질로</button><button data-t="ab">Claus Thermal Reactor</button><button data-t="cfb">화력 보일러</button><button data-t="ontology">온톨로지 그래프</button><button data-t="maintenance">생산 시퀀스·정비 준비</button></div>
 <div id="p_ladle">
 <div class="sub">SINTEF 공개 코드(refractorywear)를 공개 히트 7654321(래들 12번)을 기준으로, 조건을 바꿔 실제 모델을 다시 돌린 결과(324건)를 보간해요 · 새 라이닝에서 1히트 · 보간 오차 평균 약 5%, 최대 약 11% · 대기시간은 모델의 빈 래들 구간을 바꿔 다시 돌린 결과</div>
 <div class="ctl">
@@ -648,7 +648,41 @@ zones:[
 {n:"딥레그·루프실(시일 포트)",g:[9.5,6.5,9.5,15],r:0.8,T:"약 800–850 °C",mat:"내마모 캐스터블 + 단열층",c:"#a8947a",w:100,ins:75,sh:12,life:54,mech:"최대 6 mm 입자의 지속 마모, 에어레이션 불량 시 국부 마모, 뭉침"},
 {n:"리턴 레그",g:[9.5,7.2,4.9,5.4],r:0.8,T:"약 800–850 °C",mat:"내마모 캐스터블 + 단열층",c:"#c9a66b",w:100,ins:75,sh:12,life:60,mech:"고체 재순환 마모, 노 입구 반대편 벽 충돌"}]}
 
+
 };
+// 소각로 세부 형식: 기존 EQS 공통 계산 엔진을 재사용하되, 형상·구역·재질 후보·손상 메커니즘은 별도 정의
+EQS.inc_melt={...EQS.inc,name:"용융로형 소각로",o:"v",ox:175,oy:210,W:350,H:235,u:18,s:0.06,max:36,def:10,flow:"폐기물 연소·회분 → 용융조 → 슬래그/용융물 배출",
+sub:"용융조·슬래그 라인·출탕부 중심의 개념 단면 및 구역별 라이닝 예시 · 실제 설비 치수·마모 실측값 아님",
+note:"용융물과 접촉하는 바닥·측벽·슬래그 라인, 출탕구 및 버너 주변을 구분합니다. 슬래그 조성·염기도·산화환원 분위기·온도·유속에 따라 내화물 적합성이 달라지므로 재질 후보와 수명은 설비별 시험·제조사 자료로 검증해야 합니다.",
+deco:(Q,X,Y)=>{let s="";const G="#5a5955";
+s+=`<rect x="${X(-3.4)}" y="${Y(7.8)}" width="${6.8*Q.u}" height="${7.8*Q.u}" fill="none" stroke="${G}" stroke-width="2"/>`;
+s+=`<path d="M ${X(-2.8)} ${Y(2.0)} L ${X(2.8)} ${Y(2.0)}" stroke="#eb6834" stroke-width="2.5" stroke-dasharray="4 2"/>`;
+s+=`<path d="M ${X(3.4)} ${Y(2.0)} L ${X(4.7)} ${Y(1.0)} L ${X(4.7)} ${Y(0.2)}" fill="none" stroke="${G}" stroke-width="2"/>`;
+s+=`<text x="${X(-3.1)}" y="${Y(8.5)}" font-size="9" fill="#898781">용융조</text><text x="${X(3.5)}" y="${Y(1.1)}" font-size="9" fill="#898781">출탕</text><text x="${X(-4.8)}" y="${Y(6.8)}" font-size="9" fill="#898781">버너</text>`;
+return s},
+zones:[
+{n:"용융조 바닥",g:[-3.1,0.5,3.1,0.5],r:0.45,T:"설비별 용융 온도",mat:"슬래그 적합성 검증 고알루미나·스피넬계 등 후보",c:"#4a4845",w:300,ins:75,sh:20,life:24,mech:"용융 슬래그 침투·화학적 용손·열충격"},
+{n:"용융조 측벽",g:[-3.1,0.5,-3.1,7.2],r:0.45,T:"설비별 용융 온도",mat:"고밀도 내식성 캐스터블/벽돌 후보",c:"#6d6a64",w:280,ins:75,sh:20,life:24,mech:"슬래그 라인 변동·침투·박리·국부 과열"},
+{n:"슬래그 라인",g:[-3.1,5.2,3.1,5.2],r:0.4,T:"최대 슬래그 접촉 온도",mat:"실제 슬래그 적합성 시험 기반 재질",c:"#b8860b",w:250,ins:75,sh:20,life:18,mech:"슬래그 조성·염기도·산화환원 조건에 따른 선택적 용손"},
+{n:"출탕구·배출 경사부",g:[3.1,0.5,4.7,1.4],r:0.35,T:"출탕 운전 온도",mat:"내마모·내식성 프리캐스트/캐스터블 후보",c:"#a8947a",w:220,ins:50,sh:20,life:18,mech:"용융물 유동 마모·열충격·응고물 제거 손상"},
+{n:"상부·버너 주변",g:[-3.1,7.2,3.1,7.2],r:0.35,T:"버너·가스 온도",mat:"고알루미나 캐스터블 등 후보",c:"#c9b38a",w:180,ins:100,sh:20,life:36,mech:"화염 충돌·가스 부식·온도 구배 및 박리"}]};
+EQS.inc_grate={...EQS.inc,name:"화격자형 소각로",o:"x",ox:20,oy:210,W:350,H:235,u:26,s:0.06,max:36,def:10,flow:"폐기물 투입 → 이동 화격자 연소 → 후연소실 → 배가스",
+sub:"이동 화격자·연소실·후연소실·재 배출부 중심의 개념 단면 및 구역별 라이닝 예시 · 실제 설비 치수·마모 실측값 아님",
+note:"화격자형은 화격자 자체의 금속 냉각·구동계와 주변 내화물 라이닝을 구분해야 합니다. SiC계 재료는 일부 고마모·열충격 구역의 후보이나, 산화 분위기·수증기·알칼리/염소계 성분·회분 조성·결합계에 따라 적용성을 별도 검토해야 합니다.",
+deco:(Q,X,Y)=>{let s="";const G="#5a5955";
+s+=`<path d="M ${X(0)} ${Y(1.2)} L ${X(10.8)} ${Y(1.2)}" stroke="${G}" stroke-width="3"/>`;
+for(let x=0.25;x<10.7;x+=0.65)s+=`<line x1="${X(x)}" y1="${Y(0.85)}" x2="${X(x+0.35)}" y2="${Y(1.55)}" stroke="#898781" stroke-width="1.4"/>`;
+s+=`<path d="M ${X(1)} ${Y(8.0)} L ${X(1)} ${Y(6.2)} L ${X(2.3)} ${Y(6.2)}" fill="none" stroke="${G}" stroke-width="2"/>`;
+s+=`<path d="M ${X(8.7)} ${Y(6.0)} L ${X(10.5)} ${Y(6.0)} L ${X(10.5)} ${Y(8.2)}" fill="none" stroke="${G}" stroke-width="2"/>`;
+s+=`<text x="${X(0.2)}" y="${Y(8.6)}" font-size="9" fill="#898781">폐기물 투입</text><text x="${X(4.0)}" y="${Y(0.4)}" font-size="9" fill="#898781">이동 화격자</text><text x="${X(9.0)}" y="${Y(8.6)}" font-size="9" fill="#898781">후연소실</text>`;
+return s},
+zones:[
+{n:"투입·건조부 측벽",g:[0,2.0,2.7,2.0],r:0.3,T:"운전조건별 온도",mat:"고알루미나·내마모 캐스터블 후보",c:"#d9c9a3",w:180,ins:75,sh:20,life:36,mech:"폐기물 충돌·수분 변동·열충격"},
+{n:"화격자 상부 낙하·충돌부",g:[2.7,1.2,6.0,1.2],r:0.3,T:"연소대 온도",mat:"SiC계 또는 고알루미나 내마모 재료 후보",c:"#4a4845",w:200,ins:50,sh:20,life:24,mech:"회분 낙하·마찰 마모·국부 열충격"},
+{n:"주연소실 측벽",g:[2.7,1.2,2.7,6.8],r:0.3,T:"주연소실 운전 온도",mat:"SiC계·고알루미나·저시멘트 캐스터블 후보",c:"#6d6a64",w:180,ins:75,sh:20,life:30,mech:"알칼리·염소계 침식·비산회 부착·열사이클"},
+{n:"주연소실 천장",g:[2.7,6.8,8.7,6.8],r:0.3,T:"가스 온도",mat:"저시멘트 고알루미나 캐스터블 후보",c:"#b8bfc7",w:160,ins:75,sh:20,life:36,mech:"고온 가스·비산회 침식·열충격"},
+{n:"후연소실·출구",g:[8.7,1.2,10.5,1.2],r:0.3,T:"후연소실 운전 온도",mat:"고알루미나 캐스터블 후보",c:"#c9b38a",w:160,ins:75,sh:20,life:36,mech:"염소·알칼리 휘발성 성분·비산회 침식"},
+{n:"재 배출·호퍼",g:[6.0,1.2,8.7,1.2],r:0.3,T:"재 배출부 온도",mat:"SiC계·내마모 캐스터블 후보",c:"#a8947a",w:200,ins:50,sh:20,life:24,mech:"클링커 충격·마찰·응고재 제거 손상"}]};
 function lay(Q){if(Q.laid)return;Q.laid=1;const Z=Q.zones;let acc=0;
 Z.forEach(z=>{z.r=[].concat(z.r==null?0:z.r);if(z.r.length<2)z.r=[z.r[0],z.r[0]];
 if(z.g||z.kind)return;
