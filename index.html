@@ -800,7 +800,7 @@ $("onto_info").innerHTML=html;
 $("onto_info").innerHTML="<h3>그래프 읽는 방법</h3><p>화살표 방향은 운전 조건 → 공정 상태 → 손상 메커니즘 → 손상 결과를 나타냅니다. 녹색 점선 화살표는 해당 손상 경로와 연관된 설비 부위를 나타냅니다. 노드를 선택하면 부위 속성과 연결 경로를 확인할 수 있습니다.</p><p><b>주의:</b> 연결은 현재 설비 설명을 구조화한 정성적 지식 관계입니다. 실측으로 검증된 인과관계나 마모량 기여도는 아닙니다.</p>";
 }
 function showTab(k){document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));
-$("p_ladle").hidden=k!=="ladle";$("p_eq").hidden=k==="ladle"||k==="ontology";$("p_ontology").hidden=k!=="ontology";$("p_maintenance").hidden=k!=="maintenance";
+$("p_ladle").hidden=k!=="ladle";$("p_eq").hidden=k==="ladle"||k==="ontology"||k==="maintenance";$("p_ontology").hidden=k!=="ontology";$("p_maintenance").hidden=k!=="maintenance";
 if(k==="maintenance"){maintenanceRender();return}
 if(k==="ontology"){ontoRender();return}
 if(k==="ladle"){resize();return}
