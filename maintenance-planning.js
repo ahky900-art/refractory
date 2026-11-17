@@ -40,6 +40,37 @@
   const state = {key:"kiln",profile:"steady",checks:{},rendered:false,sequence:[{name:"원료/제품 A",condition:"기준 조업",load:100,hours:8},{name:"원료/제품 B",condition:"조성·부하 변경",load:110,hours:6}]};
   const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
+
+  function evaluateDecision(){
+    const val=id=>{const el=$m(id);return el&&el.value!==""?Number(el.value):NaN};
+    const urgency=$m("maint_urgency").value, damage=$m("maint_damage").value;
+    const available=val("maint_available_hours"), budget=val("maint_budget_limit");
+    const fullH=val("maint_full_hours"), patchH=val("maint_patch_hours");
+    const fullC=val("maint_full_cost"), patchC=val("maint_patch_cost");
+    const dryH=val("maint_dryout_hours"), dryStatus=$m("maint_dryout_status").value;
+    const out=$m("maint_decision_result");
+    const missing=[];
+    [["허용 정지시간",available],["가용 예산",budget],["전면 라이닝 작업시간",fullH],["패칭 작업시간",patchH],["전면 라이닝 비용",fullC],["패칭 비용",patchC],["승인 드라이아웃 시간",dryH]].forEach(([n,v])=>{if(!Number.isFinite(v)||v<0)missing.push(n)});
+    if(missing.length){out.innerHTML="<b>입력 필요:</b> "+missing.join(", ")+" 값을 입력해야 비교할 수 있습니다. 비용·시간은 임의의 기본값을 사용하지 않습니다.";return;}
+    const patchSafe=damage==="local";
+    const fullFeasible=(fullH+dryH)<=available && fullC<=budget && dryStatus==="approved";
+    const patchFeasible=patchSafe && (patchH+dryH)<=available && patchC<=budget && dryStatus==="approved";
+    const totalFull=fullH+dryH,totalPatch=patchH+dryH;
+    const urgencyText=urgency==="normal"?"정상 계획":urgency==="urgent"?"긴급 생산":"긴급 복구";
+    let lines="<b>검토 조건:</b> "+urgencyText+" · 정지창 "+available+"h · 예산 "+budget.toLocaleString("ko-KR")+"만원 · 드라이아웃 "+dryH+"h<br>";
+    lines+="<b>전면 라이닝:</b> 총 "+totalFull+"h / "+fullC.toLocaleString("ko-KR")+"만원 — "+(fullFeasible?"시간·예산·승인자료 조건 충족":"현재 입력조건에서 실행 불가 또는 자료 미확보")+"<br>";
+    lines+="<b>부분 패칭:</b> 총 "+totalPatch+"h / "+patchC.toLocaleString("ko-KR")+"만원 — "+(patchFeasible?"국부 손상 전제에서 시간·예산·승인자료 조건 충족":"현재 조건에서 실행 불가 또는 패칭 적용 근거 부족")+"<br>";
+    if(dryStatus!=="approved") lines+="<b>필수 조치:</b> 해당 제품·두께·시공법에 대한 제조사 승인 양생·Dry-out 곡선이 없으므로 재가동 일정 확정 불가.<br>";
+    if(damage==="unknown") lines+="<b>필수 조치:</b> 손상 범위·잔존 두께·주변 라이닝·앵커·쉘 상태를 확인하기 전에는 패칭 가능 여부를 판단할 수 없습니다.<br>";
+    if(damage==="structural") lines+="<b>필수 조치:</b> 앵커·쉘·지지 구조 손상은 패칭 대안으로 처리하지 말고 금속/구조 건전성 평가와 별도 승인 필요.<br>";
+    if(patchFeasible && !fullFeasible) lines+="<b>검토 결과:</b> 부분 패칭을 단기 대안으로 검토할 수 있습니다. 패칭 경계·건전부 접합·앵커·잔존 라이닝 검사와 후속 전면 보수 시점을 함께 승인하세요.";
+    else if(fullFeasible && !patchFeasible) lines+="<b>검토 결과:</b> 입력 조건상 전면 라이닝만 실행 가능해 보입니다. 승인된 범위와 ITP에 따라 진행 여부를 검토하세요.";
+    else if(fullFeasible && patchFeasible) lines+="<b>검토 결과:</b> 두 대안 모두 입력조건을 만족합니다. 총비용뿐 아니라 예상 수명, 조기 재보수 위험, 생산손실을 포함한 LCC 비교가 필요합니다.";
+    else lines+="<b>검토 결과:</b> 현재 조건에서 기술·시간·예산 요건을 동시에 만족하는 대안이 없습니다. 정지창 연장, 예산 확보, 공법/자재 재검토 또는 생산계획 조정을 협의하세요.";
+    lines+="<br><br><b>안전 게이트:</b> 긴급도와 예산은 승인된 Dry-out 곡선, 양생, 구조 건전성, 작업허가 기준을 낮추지 않습니다. 곡선을 임의 단축·생략하는 대안은 추천하지 않습니다.";
+    out.innerHTML=lines;
+  }
+
   function render(){
     const panel=$m("p_maintenance");
     if(!panel) return;
@@ -49,6 +80,7 @@
       $m("maint_equipment").onchange=e=>{state.key=e.target.value;paint()};
       $m("maint_profile").onchange=e=>{state.profile=e.target.value;paint()};
       $m("maint_search").oninput=paint;
+      $m("maint_decision_run").onclick=evaluateDecision;
       $m("maint_stopdate").onchange=paint;
       $m("maint_reset").onclick=()=>{state.checks={};paint()};
       $m("maint_print").onclick=()=>window.print();
