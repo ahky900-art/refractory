@@ -118,6 +118,27 @@
     const rel=$("onto_relation");
     if(rel && ![...rel.options].some(o=>o.value==="maint")) rel.insertAdjacentHTML("beforeend",'<option value="maint">정비·시공 영향</option>');
     const host=$("p_ontology");
+    if(host && !$("onto_operating_model")){
+      const model=document.createElement("div"); model.className="card"; model.id="onto_operating_model"; model.style.marginTop="10px";
+      model.innerHTML='<h2>운영 객체 모델 · Palantir식 업무 연결</h2><div class="note">인과 지식 그래프를 실제 업무 객체와 연결해야 운영 온톨로지가 됩니다. 아래는 이 대시보드에 적용할 데이터 모델 설계안이며, 아직 MES·ERP·CMMS 실데이터에 연결된 것은 아닙니다.</div>'+
+      '<div style="overflow-x:auto"><table><thead><tr><th>객체 유형</th><th>핵심 속성</th><th>연결 관계</th><th>활용 업무</th></tr></thead><tbody>'+
+      '<tr><td><b>Equipment</b><br>설비·구역</td><td>설비ID, 구역ID, 운전한계, 도면좌표</td><td>hasZone → RefractoryLining</td><td>설비별 상태 조회</td></tr>'+
+      '<tr><td><b>ProductionRun</b><br>생산 시퀀스</td><td>제품/원료 Lot, 처리량, 시간, 부하</td><td>operates → Equipment</td><td>생산조건 변화 추적</td></tr>'+
+      '<tr><td><b>OperatingCondition</b><br>운전 인자</td><td>온도, 유량, 조성, 수분, 입도, 차압</td><td>changes → ProcessState</td><td>손상 경로 탐색</td></tr>'+
+      '<tr><td><b>RefractoryLining</b><br>내화물 라이닝</td><td>재질, 로트, 두께, 기공률, 시공일</td><td>installedAt → EquipmentZone</td><td>재질·수명 비교</td></tr>'+
+      '<tr><td><b>DamageEvent</b><br>손상 사건</td><td>손상유형, 위치, 깊이, 사진, 발생일</td><td>observedOn → RefractoryLining</td><td>손상 원인·심각도 판정</td></tr>'+
+      '<tr><td><b>Inspection</b><br>검사</td><td>실측 두께, 열화상, UT, 판정자</td><td>inspects → EquipmentZone</td><td>모델 보정·이상 감지</td></tr>'+
+      '<tr><td><b>WorkOrder</b><br>정비 작업지시</td><td>우선순위, 작업창, 예산, 담당자, 상태</td><td>addresses → DamageEvent</td><td>정비 범위·자원 배치</td></tr>'+
+      '<tr><td><b>RepairAction</b><br>보수·시공</td><td>공법, 자재, 작업시간, 양생·건조 이력</td><td>restores → RefractoryLining</td><td>시공 품질·수명 환류</td></tr>'+
+      '</tbody></table></div>'+
+      '<h3 style="font-size:14px;margin:12px 0 5px">운영 액션(Action) 예시</h3><div class="an">'+
+      '<div><b>① 손상 위험 재평가</b>생산 시퀀스·운전 인자 갱신 시 해당 구역 위험도를 다시 계산</div>'+
+      '<div><b>② 검사 작업 생성</b>위험도 상승 + 검사 기준 초과 시 점검 WorkOrder 초안 생성</div>'+
+      '<div><b>③ 정비안 비교</b>전면 교체·부분 보수·운전조건 조정의 시간/비용/위험 비교</div>'+
+      '<div><b>④ 승인·실행·환류</b>담당자 승인 후 CMMS 작업 반영, 검사 결과로 모델 갱신</div></div>'+
+      '<div class="note" style="margin-top:8px"><b>필수 링크:</b> ProductionRun → OperatingCondition → DamageMechanism → DamageEvent → Inspection → WorkOrder → RepairAction → RefractoryLining. 각 링크에는 적용 기간, 출처, 신뢰도, 설비 구역, 데이터 버전을 보관해야 합니다.</div>';
+      host.appendChild(model);
+    }
     if(host && !$("onto_evidence")){
       const card=document.createElement("div"); card.className="card"; card.style.marginTop="10px";
       card.innerHTML='<h2>근거 문헌 및 적용 한계</h2><div id="onto_evidence" class="note"></div>';
