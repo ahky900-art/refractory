@@ -255,7 +255,7 @@ N_i=\min\left\{n\geq0:\max_{s,d}W_{i,s,d,m+n}\geq1-r_{\rm crit}\right\}
 <div class="maint-panel">
  <h2>생산 시퀀스 입력</h2>
  <div class="maint-note">계획된 제품·원료·연료 전환과 부하를 순서대로 입력합니다. 이 표는 계획 입력용이며 현재는 ERP/MES와 자동 연동되지 않습니다.</div>
- <div class="maint-seq-table"><table><thead><tr><th>순서</th><th>공정·제품 단계</th><th>원료·연료·분위기 변화</th><th>부하 (%)</th><th>기간 (시간)</th><th>삭제</th></tr></thead><tbody id="maint_seq_rows"></tbody></table></div>
+ <div id="maint_seq_total" class="maint-note" style="margin:7px 0"></div><div class="maint-seq-table"><table><thead><tr><th>순서</th><th>공정·제품 단계</th><th>원료·연료·분위기 변화</th><th>부하 (%)</th><th>기간 (시간)</th><th>삭제</th></tr></thead><tbody id="maint_seq_rows"></tbody></table></div>
  <div class="maint-actions"><button type="button" id="maint_add_seq">+ 생산 단계 추가</button><button type="button" id="maint_reset_seq">시퀀스 초기화</button><button type="button" id="maint_print">정비계획 인쇄</button><button type="button" id="maint_reset">체크리스트 초기화</button></div>
 </div>
 <div class="maint-columns">
@@ -275,12 +275,11 @@ N_i=\min\left\{n\geq0:\max_{s,d}W_{i,s,d,m+n}\geq1-r_{\rm crit}\right\}
  <h2>운영 기준 및 외부 참고자료</h2>
  <div class="maint-links maint-note">
   <p><a href="https://github.com/wonsukchoi/domain-experts/blob/main/roles/refractory-materials-repairer/SKILL.md" target="_blank" rel="noopener">Refractory Materials Repairer – SKILL.md</a> · 역할·재질 선정·손상 진단</p>
-  <p><a href="https://eballotprodstorage.blob.core.windows.net/eballotscontainer/API%20982%20e1%20Inspection%20and%20Assessment%20of%20Refractory%20Linings_Final%20Ballot%20Draft.pdf" target="_blank" rel="noopener">API RP 982 E1 ballot draft</a> · ITP 및 검사 단계 참고(최종 발행본 여부 별도 확인)</p>
+  <p><a href="https://www.api.org/products-and-services/standards/important-standards-announcements/standard-982" target="_blank" rel="noopener">API RP 982 – Inspection & Assessment</a> · API 공식 표준 안내 페이지</p>
   <p><a href="https://thinkhwi.com/curing-dryout-refractories/" target="_blank" rel="noopener">HWI – Curing & Dryout</a> · 제품군별 양생·건조 승온 지침</p>
   <p><a href="https://www.rescoproducts.com/docs/default-source/data-sheets-us/dry-out/100-heating-procedures--conventional-castables.pdf" target="_blank" rel="noopener">RESCO – Conventional Castable Heating Procedure</a> · 특정 제품군의 예시 곡선</p>
   <p><a href="https://training.gov.au/TrainingComponentFiles/PMC10/PMC562075B_R1.pdf" target="_blank" rel="noopener">Maintain Kiln Refractory – Training Guide</a> · 자재·장비·허가·교체 절차</p>
   <p><a href="https://github.com/altugrakay-commits/Ladle-Refractory-Predictor" target="_blank" rel="noopener">Ladle Refractory Predictor – GitHub</a> · 운전 이력 기반 래들 열화 위험 평가 사례</p>
-  <p><a href="https://www.schie?/" target="_blank" rel="noopener" hidden>Reference</a></p>
  </div>
  <div class="maint-note"><b>중요:</b> 본 탭은 정비 준비 및 의사결정 보조용 템플릿입니다. 가스프리·밀폐공간·LOTO·철거 범위·재질 선정·양생·건조 승온·재가동은 반드시 현장 승인 절차, 설비 도면, 제조사 최신 기술자료 및 자격 보유자의 검토를 따라야 합니다. 건조 곡선의 온도 기준(가스/라이닝), 유지시간, 승온·냉각속도는 제품별로 확인해야 하며, 일반 예시값을 자동 적용하지 않습니다.</div>
 </div>
