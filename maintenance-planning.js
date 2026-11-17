@@ -51,16 +51,28 @@
       $m("maint_search").oninput=paint;
       $m("maint_reset").onclick=()=>{state.checks={};paint()};
       $m("maint_print").onclick=()=>window.print();
+      $m("maint_add_seq").onclick=()=>{state.sequence.push({name:"신규 생산 단계",condition:"조건 입력",load:100,hours:1});paintSequence()};
+      $m("maint_reset_seq").onclick=()=>{state.sequence=[{name:"원료/제품 A",condition:"기준 조업",load:100,hours:8}];paintSequence()};
       state.rendered=true;
     }
+    paintSequence();
     paint();
+  }
+  function paintSequence(){
+    const body=$m("maint_seq_rows"); if(!body)return;
+    body.innerHTML=state.sequence.map((r,i)=>`<tr><td>${i+1}</td><td><input data-seq="name" data-i="${i}" value="${esc(r.name)}"></td><td><input data-seq="condition" data-i="${i}" value="${esc(r.condition)}"></td><td><input type="number" min="0" max="150" data-seq="load" data-i="${i}" value="${esc(r.load)}"></td><td><input type="number" min="0" data-seq="hours" data-i="${i}" value="${esc(r.hours)}"></td><td><button type="button" data-del-seq="${i}">삭제</button></td></tr>`).join("");
+    body.querySelectorAll("[data-seq]").forEach(el=>el.onchange=e=>{const r=state.sequence[+e.target.dataset.i],k=e.target.dataset.seq;r[k]=(k==="load"||k==="hours")?Number(e.target.value):e.target.value;paintSequence();paint()});
+    body.querySelectorAll("[data-del-seq]").forEach(el=>el.onclick=e=>{state.sequence.splice(+e.target.dataset.delSeq,1);paintSequence();paint()});
+    const total=state.sequence.reduce((a,r)=>a+(Number(r.hours)||0),0);
+    $m("maint_seq_total").textContent="입력 단계 "+state.sequence.length+"개 · 계획 운전시간 "+total.toFixed(1)+" h";
   }
   function paint(){
     const eq=equipment[state.key], prof=sequenceProfiles[state.profile];
     const q=($m("maint_search").value||"").trim().toLowerCase();
     $m("maint_focus").innerHTML='<b>설비 취약부:</b> '+esc(eq.focus)+'<br><b>선택한 생산 시퀀스:</b> '+esc(prof.desc);
+    const seqSummary=state.sequence.map((r,i)=>(i+1)+". "+r.name+" ("+r.load+"%, "+r.hours+"h): "+r.condition).join(" → ");
     const extras=prof.extra.map(x=>'<li>'+esc(x)+'</li>').join("");
-    $m("maint_sequence_note").innerHTML='<b>시퀀스별 추가 확인</b><ul>'+extras+'</ul><b>주요 위험 신호</b><ul>'+eq.risks.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul>';
+    $m("maint_sequence_note").innerHTML='<b>입력한 생산 순서</b><p>'+esc(seqSummary||"생산 단계 미입력")+'</p><b>시퀀스별 추가 확인</b><ul>'+extras+'</ul><b>주요 위험 신호</b><ul>'+eq.risks.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul>';
     $m("maint_inspection").innerHTML=eq.inspect.map((x,i)=>'<label class="maint-check"><input type="checkbox" data-check="insp-'+state.key+'-'+i+'" '+(state.checks['insp-'+state.key+'-'+i]?'checked':'')+'><span>'+esc(x)+'</span></label>').join("");
     const filtered=stages.map((s,i)=>({...s,index:i})).filter(s=>{
       const hay=(s.name+" "+s.when+" "+s.owner+" "+s.tasks.join(" ")).toLowerCase();
