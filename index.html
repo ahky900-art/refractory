@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>내화물 마모 대시보드</title>
+<script>window.MathJax={tex:{inlineMath:[['\(','\)']],displayMath:[['\[','\]']]},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
@@ -50,6 +52,11 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 .an{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
 .an div{background:var(--bg);border-radius:8px;padding:8px 10px;font-size:12.5px;border-left:4px solid var(--line)}
 .an b{display:block;margin-bottom:2px}
+.formula{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:8px 0;overflow-x:auto}
+.formula-note{font-size:12px;color:var(--mut);margin:4px 0 10px}
+#e_calc_table,#e_dist_table{overflow-x:auto}
+#e_calc_table table,#e_dist_table table{min-width:760px}
+#e_calc_table td:nth-child(2),#e_calc_table td:nth-child(3){white-space:normal}
 </style>
 </head>
 <body>
@@ -151,6 +158,41 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 <div class="card"><h2>지금 스케줄의 마모 속도 배율 (구역별)</h2><div class="box"><canvas id="e_c4"></canvas></div><div class="note">기준(부하 100%, 월 30일, 기준 정지 횟수)을 1.0으로 한 배율이에요. 파랑은 부하·가동 시간(침식·고온) 때문, 보라는 정지·재가동(열충격) 때문이에요. 선택한 달 기준이에요.</div></div>
 <div class="card"><h2>메커니즘 한눈에 보기</h2><div id="mech_an_e"></div></div>
 <div class="card" style="grid-column:1/-1"><details open><summary>부위별 마모 수식과 가정값</summary><div id="e_ph" style="font-size:13px"></div></details></div>
+<div class="card" style="grid-column:1/-1"><details open><summary>계산식 및 구역별 계산 결과 (LaTeX)</summary>
+<div class="formula">
+\[
+W_{i,s,d}(m+1)=\min\left(1,\;W_{i,s,d}(m)+\Delta W_{i,s,d,m}\right)
+\]
+\[
+\Delta W_{i,s,d,m}=K\left[(1-c_i)\phi_{i,s,d}(L_m)D_m+c_i\phi_{i,s,d}(1)\frac{S_m}{S_0}\right]
+\]
+\[
+h_{i,s,d,m}=h_{0,i}(1-W_{i,s,d,m}),\qquad
+\bar h_{i,m}=\frac{1}{2N}\sum_{d\in\{A,B\}}\sum_{s=1}^{N}h_{i,s,d,m}
+\]
+\[
+N_i=\min\left\{n\geq0:\max_{s,d}W_{i,s,d}(m+n)\geq1-r_{\rm crit}\right\}
+\]
+</div>
+<div class="formula-note">기호: \(W\)=누적 마모율, \(h_0\)=초기 작업 라이닝 두께, \(h\)=잔여 두께, \(L\)=가동 부하 배율, \(D\)=월 가동일수/30, \(S\)=월 정지 횟수, \(S_0\)=기준 정지 횟수, \(c_i\)=정지 민감도, \(K\)=물리식 모델의 기준 보정계수, \(r_{\rm crit}\)=교체 기준 잔여 두께 비율. \(s\)=구역 내 위치 구간, \(d\)=벽 A/B.</div>
+<div class="formula">
+\[
+\text{가정형 구역: }\quad
+\Delta W=\frac{0.6}{T_i}\left[(1-c_i)L_m^{k_i}D_m+c_i\frac{S_m}{S_0}\right]g_{i,s,d}
+\]
+\[
+\text{평형 접근형(고로 노상): }\quad
+W_{m+1}=W_m+\frac{\max(0,W_{\rm eq}-W_m)}{\tau}D_m
+\]
+\[
+\text{물리식 보정: }\quad
+K=\frac{0.6}{T_{\rm anchor}\max_{s,d}\phi_{\rm anchor,s,d}(1)}
+\]
+</div>
+<div class="formula-note">위 식은 현재 코드의 계산 로직을 요약한 것입니다. 물리식 적용 구역은 설비별 \(\phi\) 함수와 K를 사용하고, 수식 미적용 구역은 수명·부하 지수·분포 가정값을 사용합니다. 고로 노상은 평형 접근식을 사용합니다. 아래 표는 현재 입력값과 생산 스케줄을 반영한 결과입니다.</div>
+<h3 style="font-size:14px;font-weight:500;margin:12px 0 6px">① 구역별 마모·잔여 두께·잔여 수명</h3><div id="e_calc_table"></div>
+<h3 style="font-size:14px;font-weight:500;margin:14px 0 6px">② 선택 구역 내부 위치별 마모 분포 (A/B 벽 × 8구간)</h3><div id="e_dist_table"></div>
+</details></div>
 <div class="card" style="grid-column:1/-1"><details open><summary>구역별 라이닝, 마모 방식, 스케줄 민감도</summary><div id="e_tb" style="overflow-x:auto"></div>
 <div class="note">이 탭의 값은 래들처럼 실제 모델을 실행한 결과가 아니라, 공개 자료의 일반적인 구성과 수명 범위를 바탕으로 한 <b>예시 가정값</b>이에요. 구역 길이, 두께, 수명, 부하 지수(kL), 정지 민감도(cs)는 실제 설비 자료로 바꿔 쓰세요. 스크립트 맨 아래의 <code>EQS</code> 객체를 고치면 돼요. 월 마모율 = (0.6/수명) × [(1−cs) × 부하^kL × 가동일/30 + cs × 정지횟수/기준정지횟수]이고, 수명은 잔여 두께 40%에 닿는 시점이에요.</div></details></div>
 </div>
@@ -518,6 +560,19 @@ function stepW(Q,i,sd,s,w,m){const z=Q.zones[i],p=sprof(m),ph=Q.ph;
 if(ph&&ph.kin&&ph.kin[i])return Math.min(1,w+Math.max(0,ph.weq(i,s,sd,p.L)-w)/ph.tau*p.D);
 if(ph&&ph.use&&ph.use[i]){const cs=z.cs==null?Q.cs:z.cs,k=phIdx(i,sd,s),r0=ph.c0[k]!=null?ph.c0[k]:(ph.c0[k]=phR(ph,i,s,sd,1));return Math.min(1,w+ph.K*((1-cs)*phR(ph,i,s,sd,p.L)*p.D+cs*(p.S/Q.S0)*r0))}
 const f=fAB(z);return Math.min(1,w+zr(z,Q,m)*SEGa[i][s]*(sd<0?f[0]:f[1]))}
+function qCalcTable(Q,left,rem,mean){
+const Z=Q.zones;
+const model=i=>Q.ph&&Q.ph.kin&&Q.ph.kin[i]?"평형 접근식":Q.ph&&Q.ph.use&&Q.ph.use[i]?"물리식 + K 보정":"가정형 선형 수명식";
+const pos=i=>{let best={w:-1,s:0,sd:"A"};[-1,1].forEach(sd=>WS[i][sd<0?0:1].forEach((w,s)=>{if(w>best.w)best={w,s,sd:sd<0?"A":"B"}}));return best};
+const rows=Z.map((z,i)=>{const p=pos(i),minMm=z.w*(1-WZ[i]),avgMm=z.w*mean[i],months=left[i]>=600?"50년 이상":left[i]<=0?"교체 기준 도달":left[i]+"개월";
+return '<tr><td>'+(i+1)+'. '+z.n+'</td><td>'+model(i)+'</td><td>'+z.w+' mm</td><td>'+(WZ[i]*100).toFixed(1)+'%</td><td>'+minMm.toFixed(1)+' mm</td><td>'+avgMm.toFixed(1)+' mm</td><td>'+p.sd+'벽 / '+(p.s+1)+'구간</td><td>'+months+'</td></tr>'}).join("");
+$("e_calc_table").innerHTML='<table><thead><tr><th>구역</th><th>계산 모델</th><th>초기 작업 두께</th><th>최대 누적 마모</th><th>최소 잔여 두께</th><th>평균 잔여 두께</th><th>최대 마모 위치</th><th>교체 기준까지</th></tr></thead><tbody>'+rows+'</tbody></table>';
+const z=Z[qZ],dist=[];
+[-1,1].forEach(sd=>{const side=sd<0?"A":"B";for(let s=0;s<KS;s++){const w=WS[qZ][sd<0?0:1][s],next=stepW(Q,qZ,sd,s,w,qM),loss=Math.max(0,next-w)*z.w;
+dist.push('<tr><td>'+side+'</td><td>'+(s+1)+'</td><td>'+(w*100).toFixed(1)+'%</td><td>'+(z.w*(1-w)).toFixed(1)+' mm</td><td>'+loss.toFixed(3)+' mm/월</td></tr>')}});
+$("e_dist_table").innerHTML='<div class="formula-note">선택 구역: '+(qZ+1)+'. '+z.n+' · 초기 작업 두께 '+z.w+' mm · 현재 최대 마모 '+(WZ[qZ]*100).toFixed(1)+'% · 교체 기준 '+Math.round(qR*100)+'% 잔여</div><table><thead><tr><th>벽</th><th>축 방향 구간</th><th>누적 마모율</th><th>현재 잔여 두께</th><th>다음 1개월 예상 마모</th></tr></thead><tbody>'+dist.join("")+'</tbody></table>';
+if(window.MathJax&&MathJax.typesetPromise)MathJax.typesetPromise([$("e_calc_table"),$("e_dist_table")]).catch(()=>{});
+}
 function qRender(){const Q=EQS[qKey],Z=Q.zones,mx=Q.max;lay(Q);phInit(Q);SEGa=Z.map(segArr);
 const CS=Z.map((z,i)=>[-1,1].map(sd=>[...Array(KS).keys()].map(s=>{const a=[0];for(let m=0;m<=mx;m++)a.push(stepW(Q,i,sd,s,a[m],m));return a})));
 const mi=Math.min(qM,mx+1);
@@ -551,7 +606,7 @@ if(Q.ph&&Q.ph.use&&Q.ph.use[i]){let a=0,b=0;for(let s=0;s<KS;s++)[-1,1].forEach(
 const kL=z.kL==null?Q.kL:z.kL;return[(1-cs)*Math.pow(pp.L,kL)*pp.D,cs*pp.S/Q.S0]});
 qC4.data.datasets[0].data=tl.map(v=>Math.round(v[0]*100)/100);qC4.data.datasets[1].data=tl.map(v=>Math.round(v[1]*100)/100);
 qC5.data.datasets[0].data=WS[qZ][0].map(v=>Math.round(100*(1-v)));qC5.data.datasets[1].data=WS[qZ][1].map(v=>Math.round(100*(1-v)));
-qC1.update();qC2.update();qC3.update();qC4.update();qC5.update()}
+qCalcTable(Q,left,rem,mean);qC1.update();qC2.update();qC3.update();qC4.update();qC5.update();if(window.MathJax&&MathJax.typesetPromise)MathJax.typesetPromise([$("e_ph")]).catch(()=>{})}
 const QCOL=["#2a78d6","#eb6834","#1baf7a","#6250d6","#b8860b","#d03b3b","#898781","#0e8f8f"];
 function qInit(k){qKey=k;const Q=EQS[k];qM=Q.def;qZ=Math.min(qZ,Q.zones.length-1);qScen="steady";qLoad=100;qDays=30;qStops=Q.S0;
 document.querySelectorAll("#seg5 button").forEach(c=>c.classList.toggle("on",c.dataset.m==="steady"));
