@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>내화물 마모 대시보드</title>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
@@ -50,6 +52,11 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 .an{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
 .an div{background:var(--bg);border-radius:8px;padding:8px 10px;font-size:12.5px;border-left:4px solid var(--line)}
 .an b{display:block;margin-bottom:2px}
+.formula{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;margin:8px 0;overflow-x:auto}
+.formula-note{font-size:12px;color:var(--mut);margin:5px 0 10px}
+#e_calc_table,#e_dist_table{overflow-x:auto}
+#e_calc_table table,#e_dist_table table{min-width:760px}
+#e_calc_table td,#e_dist_table td{white-space:nowrap}
 </style>
 </head>
 <body>
@@ -150,6 +157,28 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 <div class="card" style="grid-column:1/-1"><h2>스케줄이 내화물에 주는 부하: 이 설비의 메커니즘</h2><div id="e_chain"></div><div class="note">일반적인 마모 메커니즘 설명이에요. 배율을 정하는 부하 지수와 정지 민감도는 가정값이에요.</div></div>
 <div class="card"><h2>지금 스케줄의 마모 속도 배율 (구역별)</h2><div class="box"><canvas id="e_c4"></canvas></div><div class="note">기준(부하 100%, 월 30일, 기준 정지 횟수)을 1.0으로 한 배율이에요. 파랑은 부하·가동 시간(침식·고온) 때문, 보라는 정지·재가동(열충격) 때문이에요. 선택한 달 기준이에요.</div></div>
 <div class="card"><h2>메커니즘 한눈에 보기</h2><div id="mech_an_e"></div></div>
+<div class="card" id="e_formula_card" style="grid-column:1/-1"><details open><summary>부위별 마모 수식 및 구역별 계산 결과 (LaTeX)</summary>
+<div class="formula">
+\[
+W_{i,s,d,m+1}=\min\left(1,\;W_{i,s,d,m}+\Delta W_{i,s,d,m}\right)
+\]
+\[
+\Delta W_{i,s,d,m}=K\left[(1-c_i)\phi_{i,s,d}(L_m)D_m+c_i\phi_{i,s,d}(1)\frac{S_m}{S_0}\right]
+\]
+\[
+h_{i,s,d,m}=h_{0,i}(1-W_{i,s,d,m}),\qquad
+\bar h_{i,m}=\frac{1}{2N}\sum_{d\in\{A,B\}}\sum_{s=1}^{N}h_{i,s,d,m}
+\]
+\[
+N_i=\min\left\{n\geq0:\max_{s,d}W_{i,s,d,m+n}\geq1-r_{\rm crit}\right\}
+\]
+</div>
+<div class="formula-note">W: 누적 마모율, h₀: 초기 작업 라이닝 두께, h: 잔여 두께, L: 가동 부하 배율, D: 월 가동일수/30, S: 월 정지 횟수, S₀: 기준 정지 횟수, cᵢ: 정지 민감도, K: 기준 보정계수, rcrit: 교체 기준 잔여 두께 비율. i는 구역, s는 구역 내 8개 위치, d는 A/B 벽입니다.</div>
+<div id="e_model_formula"></div>
+<h3 style="font-size:14px;font-weight:600;margin:12px 0 6px">① 구역별 마모·잔여 두께·잔여 수명</h3><div id="e_calc_table"></div>
+<h3 style="font-size:14px;font-weight:600;margin:14px 0 6px">② 선택 구역 내부 위치별 마모 분포 (A/B 벽 × 8구간)</h3><div id="e_dist_table"></div>
+<div class="formula-note">표는 현재 설비·운전 스케줄·실측 반영값에 따라 갱신됩니다. 모델 가정값은 현장 실측으로 검증하기 전까지 설계 확정값이나 보증 수명으로 해석하면 안 됩니다.</div>
+</details></div>
 <div class="card" style="grid-column:1/-1"><details open><summary>부위별 마모 수식과 가정값</summary><div id="e_ph" style="font-size:13px"></div></details></div>
 <div class="card" style="grid-column:1/-1"><details open><summary>구역별 라이닝, 마모 방식, 스케줄 민감도</summary><div id="e_tb" style="overflow-x:auto"></div>
 <div class="note">이 탭의 값은 래들처럼 실제 모델을 실행한 결과가 아니라, 공개 자료의 일반적인 구성과 수명 범위를 바탕으로 한 <b>예시 가정값</b>이에요. 구역 길이, 두께, 수명, 부하 지수(kL), 정지 민감도(cs)는 실제 설비 자료로 바꿔 쓰세요. 스크립트 맨 아래의 <code>EQS</code> 객체를 고치면 돼요. 월 마모율 = (0.6/수명) × [(1−cs) × 부하^kL × 가동일/30 + cs × 정지횟수/기준정지횟수]이고, 수명은 잔여 두께 40%에 닿는 시점이에요.</div></details></div>
@@ -518,6 +547,21 @@ function stepW(Q,i,sd,s,w,m){const z=Q.zones[i],p=sprof(m),ph=Q.ph;
 if(ph&&ph.kin&&ph.kin[i])return Math.min(1,w+Math.max(0,ph.weq(i,s,sd,p.L)-w)/ph.tau*p.D);
 if(ph&&ph.use&&ph.use[i]){const cs=z.cs==null?Q.cs:z.cs,k=phIdx(i,sd,s),r0=ph.c0[k]!=null?ph.c0[k]:(ph.c0[k]=phR(ph,i,s,sd,1));return Math.min(1,w+ph.K*((1-cs)*phR(ph,i,s,sd,p.L)*p.D+cs*(p.S/Q.S0)*r0))}
 const f=fAB(z);return Math.min(1,w+zr(z,Q,m)*SEGa[i][s]*(sd<0?f[0]:f[1]))}
+function qCalcTable(Q,left,mean){
+const Z=Q.zones,rows=Z.map((z,i)=>{let worst={w:-1,s:0,side:"A"};
+[-1,1].forEach(sd=>WS[i][sd<0?0:1].forEach((w,s)=>{if(w>worst.w)worst={w,s,side:sd<0?"A":"B"}}));
+const minRemain=z.w*(1-WZ[i]),avgRemain=z.w*mean[i],life=left[i]>=600?"50년 이상":left[i]<=0?"교체 기준 도달":left[i]+"개월";
+const model=Q.ph&&Q.ph.use&&Q.ph.use[i]?"상대 물리식 + K 보정":Q.ph&&Q.ph.kin&&Q.ph.kin[i]?"평형 접근식":"가정형 수명식";
+return "<tr><td>"+(i+1)+". "+z.n+"</td><td>"+model+"</td><td>"+z.w+" mm</td><td>"+(WZ[i]*100).toFixed(1)+"%</td><td>"+minRemain.toFixed(1)+" mm</td><td>"+avgRemain.toFixed(1)+" mm</td><td>"+worst.side+"벽 / "+(worst.s+1)+"구간</td><td>"+life+"</td></tr>"}).join("");
+$("e_calc_table").innerHTML="<table><thead><tr><th>구역</th><th>계산 모델</th><th>초기 작업 두께</th><th>최대 누적 마모</th><th>최소 잔여 두께</th><th>평균 잔여 두께</th><th>최대 마모 위치</th><th>교체 기준까지</th></tr></thead><tbody>"+rows+"</tbody></table>";
+const z=Z[qZ],dist=[];
+[-1,1].forEach(sd=>{for(let j=0;j<KS;j++){const w=WS[qZ][sd<0?0:1][j],next=stepW(Q,qZ,sd,j,w,qM),loss=Math.max(0,next-w)*z.w;
+dist.push("<tr><td>"+(sd<0?"A":"B")+"</td><td>"+(j+1)+"</td><td>"+(w*100).toFixed(1)+"%</td><td>"+(z.w*(1-w)).toFixed(1)+" mm</td><td>"+loss.toFixed(3)+" mm/월</td></tr>")}});
+$("e_dist_table").innerHTML="<div class='formula-note'>선택 구역: "+(qZ+1)+". "+z.n+" · 초기 작업 두께 "+z.w+" mm · 현재 최대 마모 "+(WZ[qZ]*100).toFixed(1)+"%</div><table><thead><tr><th>벽</th><th>위치 구간</th><th>누적 마모율</th><th>현재 잔여 두께</th><th>다음 1개월 예상 마모</th></tr></thead><tbody>"+dist.join("")+"</tbody></table>";
+const formulas=Q.ph&&Q.ph.eq?Q.ph.eq.map(x=>"<div>"+x+"</div>").join(""):"<div>가정형 마모율 식을 적용합니다.</div>";
+$("e_model_formula").innerHTML="<div class='formula'><b style='font-size:12px'>현재 설비의 부위별 마모율 함수</b>"+formulas+"</div>";
+if(window.MathJax&&MathJax.typesetPromise)window.MathJax.typesetPromise([$("e_formula_card")]).catch(e=>console.warn("MathJax render",e));
+}
 function qRender(){const Q=EQS[qKey],Z=Q.zones,mx=Q.max;lay(Q);phInit(Q);SEGa=Z.map(segArr);
 const CS=Z.map((z,i)=>[-1,1].map(sd=>[...Array(KS).keys()].map(s=>{const a=[0];for(let m=0;m<=mx;m++)a.push(stepW(Q,i,sd,s,a[m],m));return a})));
 const mi=Math.min(qM,mx+1);
@@ -538,7 +582,7 @@ $("e_note").textContent=Q.note+" 점선은 새 라이닝의 안쪽 면, 빨간 �
 qDraw(Q);qXs(Q);qAcc(Q);
 const all=WS[qZ].flat(),zq=Z[qZ];
 $("e_xt").textContent+=` 구역 안에서는 가장 얇은 곳 ${(zq.w*(1-Math.max(...all))).toFixed(0)} mm, 가장 두꺼운 곳 ${(zq.w*(1-Math.min(...all))).toFixed(0)} mm예요.`;
-const mean=Z.map((z,i)=>1-WS[i].flat().reduce((a,b)=>a+b,0)/(2*KS));
+const mean=Z.map((z,i)=>1-WS[i].flat().reduce((a,b)=>a+b,0)/(2*KS));qCalcTable(Q,left,mean);
 $("e5l").textContent="선택한 구역 ("+(qZ+1)+". "+Z[qZ].n+")의 잔여 두께";$("e5").textContent=Math.round(rem[qZ]*100)+"% (평균 "+Math.round(mean[qZ]*100)+"%)";
 qC1.data.datasets[0].data=rem.map(v=>Math.round(v*100));qC1.data.datasets[0].backgroundColor=rem.map(v=>v<=qR+1e-9?"#d03b3b":v<=qR+0.15?"#f0b429":"#2a78d6");
 qC1.data.datasets[1].data=mean.map(v=>Math.round(v*100));qC1.data.datasets[2].data=Z.map(()=>Math.round(qR*100));
