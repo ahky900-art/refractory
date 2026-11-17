@@ -99,7 +99,10 @@ streamlit run app.py
 
 ### 참고 자료와 적용 한계
 
-- [Refractory Materials Repairer – SKILL.md](https://github.com/wonsukchoi/domain-experts/blob/main/roles/refractory-materials-repairer/SKILL.md): 재질·열화 진단·Dry-out 의사결정 프레임워크
+- [Refractory Materials Repairer – SKILL.md](https://github.com/wonsukchoi/domain-experts/blob/main/roles/refractory-materials-repairer/SKILL.md): 재질·열화 진단·Dry-out 의사결정 프레임워크 (저장소 표기상 draft)
+- [Playbook](https://github.com/wonsukchoi/domain-experts/blob/main/roles/refractory-materials-repairer/references/playbook.md): 구역별 재질 선정·건조 곡선·팽창 줄눈 계산
+- [Red flags](https://github.com/wonsukchoi/domain-experts/blob/main/roles/refractory-materials-repairer/references/red-flags.md): 건조 일정 압축·조기 파손 등 위험 신호
+- [Vocabulary](https://github.com/wonsukchoi/domain-experts/blob/main/roles/refractory-materials-repairer/references/vocabulary.md): 내화물 용어 구분
 - [API 982 Body of Knowledge](https://www.api.org/-/media/files/certification/icp/icp-certification-programs/982/bok_982_202504_final.pdf): 검사·평가·품질관리 역량 범위 참고 자료
 - [HWI – Curing & Dryout](https://thinkhwi.com/curing-dryout-refractories/): 제조사 양생·건조 안내
 - [RESCO – Conventional Castable Heating Procedure](https://www.rescoproducts.com/docs/default-source/data-sheets-us/dry-out/100-heating-procedures--conventional-castables.pdf): 특정 제품군의 건조 절차 예시
