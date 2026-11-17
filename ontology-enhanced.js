@@ -8,8 +8,10 @@
   const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const C = {prod:"#2878c8", maint:"#8064b2", state:"#64748b", mech:"#dc7b35", damage:"#bd4e45", zone:"#16866a"};
   const SOURCES = [
-    {id:"hd",title:"HD현대 × Palantir 제조업 온톨로지 사례",year:"2025 증권사 산업 분석자료",url:"https://securities.miraeasset.com/bbs/download/2138489.pdf?attachmentId=2138489",note:"생산계획·설비 이상·정비 작업·가용 자원 배치를 연결하는 운영 의사결정 구조의 참고 사례. 내화물 손상 메커니즘의 기술적 근거는 아님."},
-    {id:"sic",title:"WtE 시설 SiC 내화물 고온 부식 연구",year:"2013",url:"https://www.sciencedirect.com/science/article/pii/S0955221913001076",note:"알칼리/황산염 용융물 공격, 염 응축, SiC 산화가 복합적으로 작용하고 열-화학-기계적 변형이 관찰됨."},
+    {id:"hd",title:"HD현대·팔란티어 스마트 조선소 협력 공식 발표",year:"2022",url:"https://esg.hd.com/ko/news/591",note:"Foundry 도입과 전 공정 디지털트윈 구현을 발표한 HD현대 공식 자료. 구체적인 내화물 손상 메커니즘 근거가 아니라 운영 온톨로지 벤치마크."},
+    {id:"pal",title:"Palantir Foundry Ontology 공식 구조",year:"공식 문서",url:"https://www.palantir.com/docs/foundry/ontology/overview",note:"현실의 설비·제품·주문을 객체/속성/링크로 표현하고 액션·함수로 업무 실행까지 연결하는 설계 원칙."},
+    {id:"hdreport",title:"미래에셋증권: 팔란티어 온톨로지를 접목한 제조업 사례",year:"산업 리서치",url:"https://securities.miraeasset.com/bbs/download/2138489.pdf?attachmentId=2138489",note:"HD현대 조선소 생산 프로세스 시각화와 공정 병목·일정 준수 관리 사례를 설명하는 2차 자료."},
+    {id:"sic",title:"SiC 내화물의 수증기 산화·용융 알칼리 부식 저항 연구",year:"2026",url:"https://www.sciencedirect.com/science/article/pii/S0955221925006855",note:"SiC 내화물의 수증기 산화 및 용융 Na₂SO₄ 부식 저항을 실험한 연구. 소각로 적용성은 실제 가스·염 조성 및 온도 조건을 추가 검증해야 함."},
     {id:"kiln",title:"유성 슬러지 소각 로타리 킬른 내화물 침식",year:"2023",url:"https://www.sciencedirect.com/science/article/pii/S0956053X23002817",note:"유성 슬러지 유래 용융물이 벽돌 침식을 유발하고, 1350°C·36시간 소성 조건에서 침식 깊이 3.1 mm가 보고됨. 특정 실험 조건의 결과."},
     {id:"feo",title:"FeOx 고함량 슬래그의 동적 내화물 마모",year:"2020",url:"https://journals.sagepub.com/doi/10.1080/03019233.2020.1827672",note:"FeOx는 슬래그 점도·젖음성·저융점 반응상 및 침투/용손에 영향을 줌. 재질별 반응 차이가 큼."},
     {id:"ladle",title:"래들 Al₂O₃-MgO 스피넬 형성 내화물 마모",year:"2013",url:"https://doi.org/10.1051/METAL/2013081",note:"슬래그 침투와 CA₂/CA₆ 반응상 체적 변화가 매크로 균열 및 추가 침투를 촉진할 수 있음."},
@@ -188,7 +190,7 @@
     }));
     $("onto_info").innerHTML='<h3>그래프 읽는 방법</h3><p>왼쪽에서 오른쪽으로 인자 변화 → 공정 상태 → 손상 메커니즘 → 손상 결과 → 취약 부위 순서입니다. 행을 클릭하면 조건과 문헌 근거를 확인할 수 있습니다.</p><p><b>주의:</b> 화살표는 문헌과 공학 메커니즘에 근거한 조건부 관계입니다. 인자 변화가 손상량을 얼마나 증가시키는지는 해당 설비의 운전·검사 데이터로 검증해야 합니다.</p>';
     const used=new Set(filtered.flatMap(sourceIds));
-    $("onto_evidence").innerHTML=SOURCES.filter(s=>used.has(s.id)||s.id==="hd").map(s=>'<div style="padding:7px 0;border-bottom:1px solid var(--line)"><b><a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.title)+'</a></b> <span>('+esc(s.year)+')</span><div>'+esc(s.note)+'</div></div>').join("")+
+    $("onto_evidence").innerHTML=SOURCES.filter(s=>used.has(s.id)||["hd","pal","hdreport"].includes(s.id)).map(s=>'<div style="padding:7px 0;border-bottom:1px solid var(--line)"><b><a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.title)+'</a></b> <span>('+esc(s.year)+')</span><div>'+esc(s.note)+'</div></div>').join("")+
       '<div style="margin-top:8px"><b>해석 원칙:</b> 문헌의 실험 조건·재질·분위기를 현재 설비에 그대로 일반화하지 않습니다. 화격자 금속 부식 사례는 내화물 손상의 직접 증거로 취급하지 않습니다. “증가”는 정성적 방향이며, 수치 기여도·인과 확정은 현장 데이터 검증 전까지 미제공합니다.</div>';
   }
   $("onto_equipment")?.addEventListener("change",render);
