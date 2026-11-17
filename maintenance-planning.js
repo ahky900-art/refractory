@@ -37,7 +37,7 @@
     surge:{label:"단기 증산·고부하",desc:"높은 생산부하가 지속되는 경우 정비 전까지의 잔여 운전 여유를 보수적으로 검토합니다.",extra:["부하율·온도·유량·차압·운전시간의 상위 구간을 확인","핫스팟·마모 집중부의 실측 주기를 단축하고 예비품 확보"]}
   };
 
-  const state = {key:"kiln",profile:"steady",checks:{}, rendered:false};
+  const state = {key:"kiln",profile:"steady",checks:{},rendered:false,sequence:[{name:"원료/제품 A",condition:"기준 조업",load:100,hours:8},{name:"원료/제품 B",condition:"조성·부하 변경",load:110,hours:6}]};
   const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
   function render(){
