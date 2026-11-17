@@ -49,6 +49,7 @@
       $m("maint_equipment").onchange=e=>{state.key=e.target.value;paint()};
       $m("maint_profile").onchange=e=>{state.profile=e.target.value;paint()};
       $m("maint_search").oninput=paint;
+      $m("maint_stopdate").onchange=paint;
       $m("maint_reset").onclick=()=>{state.checks={};paint()};
       $m("maint_print").onclick=()=>window.print();
       $m("maint_add_seq").onclick=()=>{state.sequence.push({name:"신규 생산 단계",condition:"조건 입력",load:100,hours:1});paintSequence()};
@@ -82,12 +83,15 @@
     const total=stages.reduce((n,s)=>n+s.tasks.length,0);
     $m("maint_progress").textContent=done+" / "+total+" 준비 항목 완료";
     $m("maint_bar").style.width=(total?100*done/total:0)+"%";
+    const stopRaw=$m("maint_stopdate").value;
+    const offsets=[-84,-56,-14,0,0,0,0,0,0,0,28];
+    const plannedDate=i=>{if(!stopRaw)return "";const d=new Date(stopRaw+"T12:00:00");d.setDate(d.getDate()+(offsets[i]||0));return " · "+d.toLocaleDateString("ko-KR")};
     $m("maint_stages").innerHTML=filtered.map(s=>{
       const tasks=s.tasks.map((t,i)=>{
         const id=s.id+"-"+i,checked=!!state.checks[id];
         return '<label class="maint-check"><input type="checkbox" data-check="'+id+'" '+(checked?'checked':'')+'><span>'+esc(t)+'</span></label>';
       }).join("");
-      return '<details class="maint-stage" '+(s.index<3?'open':'')+'><summary><span class="maint-when">'+esc(s.when)+'</span><b>'+esc(s.name)+'</b><small>'+esc(s.owner)+'</small></summary><div class="maint-stage-body">'+tasks+'<div class="maint-gate"><b>완료 확인점</b> · '+esc(s.gate)+'</div></div></details>';
+      return '<details class="maint-stage" '+(s.index<3?'open':'')+'><summary><span class="maint-when">'+esc(s.when+plannedDate(s.index))+'</span><b>'+esc(s.name)+'</b><small>'+esc(s.owner)+'</small></summary><div class="maint-stage-body">'+tasks+'<div class="maint-gate"><b>완료 확인점</b> · '+esc(s.gate)+'</div></div></details>';
     }).join("")||'<p class="note">검색 조건에 맞는 단계가 없습니다.</p>';
     $m("maint_stages").querySelectorAll("[data-check]").forEach(el=>el.onchange=e=>{state.checks[e.target.dataset.check]=e.target.checked;paint()});
     $m("maint_inspection").querySelectorAll("[data-check]").forEach(el=>el.onchange=e=>{state.checks[e.target.dataset.check]=e.target.checked;paint()});
