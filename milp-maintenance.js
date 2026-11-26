@@ -47,6 +47,8 @@
     });
   }
 
+  window.maintenanceGetJobsForMILP = () => jobs.map(j=>({...j}));
+
   function readSequence() {
     if (typeof window.maintenanceGetSequenceForMILP !== "function") return [];
     return window.maintenanceGetSequenceForMILP();
@@ -186,9 +188,9 @@
     $("milp_add_job").addEventListener("click",()=>{jobs.push({name:"신규 설비",life:"",duration:"",cost:""});renderJobs();});
     $("milp_load_example").addEventListener("click",()=>{
       const demoSequence=[
-        {name:"① 기준 조업",condition:"기준 원료·안정 운전",load:100,hours:8,window:10},
+        {name:"① 기준 조업",condition:"기준 원료·안정 운전",load:100,hours:8,window:12},
         {name:"② 고부하 생산",condition:"생산량 증가·열부하 상승",load:120,hours:8,window:12},
-        {name:"③ 원료 전환",condition:"원료 조성 변경·부하 완화",load:90,hours:6,window:8}
+        {name:"③ 원료 전환",condition:"원료 조성 변경·부하 완화",load:90,hours:6,window:12}
       ];
       if(typeof window.maintenanceSetSequenceForMILP!=="function"){
         $("milp_example_status").textContent="생산 시퀀스 입력 모듈이 아직 준비되지 않았습니다. 페이지를 새로고침한 뒤 다시 시도하세요.";
@@ -196,14 +198,15 @@
       }
       window.maintenanceSetSequenceForMILP(demoSequence);
       jobs.splice(0,jobs.length,
-        {name:"래들",life:"10",duration:"8",cost:"800"},
-        {name:"로타리 킬른",life:"16",duration:"10",cost:"1200"},
-        {name:"가열로",life:"20",duration:"6",cost:"600"}
+        {name:"래들 1",life:"7",duration:"8",cost:"800"},
+        {name:"래들 2",life:"12",duration:"8",cost:"850"},
+        {name:"래들 3",life:"18",duration:"6",cost:"900"},
+        {name:"래들 4",life:"22",duration:"5",cost:"700"}
       );
       renderJobs();
       $("milp_downtime_penalty").value="100";
       $("milp_budget").value="3000";
-      $("milp_example_status").innerHTML="<b>예시 입력 완료.</b> 생산 시퀀스 3단계와 정비 대상 3기가 입력됐습니다. 이제 아래 ‘MILP 최적 정비 일정 계산’을 누르세요.";
+      $("milp_example_status").innerHTML="<b>예시 입력 완료.</b> 생산 시퀀스 3단계와 래들 4대의 조건·RUL·정비시간이 입력됐습니다. 이제 아래 ‘MILP 최적 정비 일정 계산’을 누르세요.";
       $("milp_result").textContent="예시 값이 입력됐습니다. MILP 최적 정비 일정 계산을 실행하세요.";
     });
     $("milp_run").addEventListener("click",()=>solve().catch(err=>{
