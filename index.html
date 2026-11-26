@@ -117,12 +117,65 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 @media(max-width:650px){.milp-example-grid{grid-template-columns:1fr}}
 
 
+
+/* Steelworks process learning view */
+.sw-hero{display:flex;justify-content:space-between;gap:18px;align-items:flex-end;padding:20px;border-radius:14px;background:linear-gradient(125deg,#182b3c,#29485a);color:#f5f7f8;margin-bottom:12px}
+.sw-hero h2{font-size:21px;font-weight:650;margin:5px 0}.sw-hero p{margin:0;color:#d3e0e6;font-size:13px}.sw-eyebrow{font-size:10px;letter-spacing:1.6px;color:#a9d5dc}
+.sw-legend,.sw-section-legend{display:flex;gap:9px 13px;flex-wrap:wrap;font-size:11px}.sw-legend{max-width:310px;color:#e8eef0}.sw-dot,.sw-swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}.sw-dot.hot{background:#ff8b4a}.sw-dot.refractory{background:#d7a35c}.sw-dot.shell{background:#9aa9b5}.sw-dot.wear{background:#e85d5d}
+.sw-panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:11px 0}.sw-panel-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:10px}.sw-panel-head h3{font-size:15px;margin:0;font-weight:650}.sw-panel-head span{font-size:11px;color:var(--mut)}
+.sw-flow{display:grid;grid-template-columns:repeat(8,minmax(105px,1fr));gap:7px;overflow-x:auto;padding:2px 1px 8px}
+.sw-stage{position:relative;min-width:105px;text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:9px;padding:10px 9px;cursor:pointer}
+.sw-stage:after{content:"›";position:absolute;right:-8px;top:25%;font-size:22px;color:var(--mut);z-index:2}.sw-stage:last-child:after{display:none}.sw-stage b{display:block;font-size:12px}.sw-stage small{display:block;color:var(--mut);font-size:10px;margin-top:4px}.sw-stage .sw-num{display:block;color:#c17b36;font-size:10px;font-weight:700;margin-bottom:5px}.sw-stage.active{border:2px solid #bd7b39;background:#fff4e5;color:#382512}
+.sw-flow-caption{font-size:12px;color:var(--mut);padding:6px 2px 0}
+.sw-detail-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:11px}.sw-detail-grid .sw-panel{margin:0}.sw-section{background:#18212a;border-radius:9px;min-height:315px;display:flex;align-items:center;justify-content:center;overflow:hidden}.sw-section svg{width:100%;height:auto;max-height:410px}.sw-section-legend{margin-top:8px;color:var(--mut)}.sw-swatch.shell{background:#8e9aa3}.sw-swatch.backup{background:#d5c6a4}.sw-swatch.hotface{background:#c98743}.sw-swatch.metal{background:#e66c3b}.sw-swatch.damage{background:#ed4444}
+.sw-small{font-size:11px;color:var(--mut);line-height:1.65;margin:9px 0 0}.sw-damage{display:grid;gap:8px}.sw-damage-item{padding:10px;border-radius:8px;background:var(--bg);border-left:4px solid #c78a49}.sw-damage-item b{font-size:12px;display:block}.sw-damage-item p{font-size:11px;color:var(--mut);margin:4px 0 0}.sw-callout{padding:10px;margin-top:9px;border-radius:8px;background:var(--bg);font-size:12px;line-height:1.6}.sw-callout b{display:block;margin-bottom:3px}
+.sw-windows{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.sw-window{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:10px}.sw-window b{display:block;font-size:12px}.sw-window p{font-size:11px;color:var(--mut);margin:5px 0 0}
+.sw-milp-flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;gap:8px;align-items:center}.sw-milp-flow>div{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px}.sw-milp-flow b,.sw-milp-flow small{display:block}.sw-milp-flow b{font-size:12px}.sw-milp-flow small{font-size:10px;color:var(--mut);margin-top:4px}.sw-milp-flow>i{font-style:normal;color:var(--mut)}.sw-equation{background:var(--bg);border-radius:8px;padding:12px;margin:10px 0;font-size:13px;overflow-x:auto;white-space:nowrap}.sw-primary{border:0;border-radius:8px;padding:10px 14px;background:#263f50;color:#fff;font-weight:600;cursor:pointer;margin-top:10px}.sw-footnote{padding:10px 2px;font-size:11px;color:var(--mut);line-height:1.6}
+@media(max-width:760px){.sw-detail-grid{grid-template-columns:1fr}.sw-hero{display:block}.sw-legend{margin-top:14px}.sw-windows{grid-template-columns:1fr}.sw-milp-flow{grid-template-columns:1fr}.sw-milp-flow>i{transform:rotate(90deg);justify-self:center}}
 </style>
 </head>
 <body>
 <div class="wrap">
 <h1>내화물 마모 대시보드</h1>
-<div class="tabs" id="tabs"><button data-t="ladle" class="on">래들 (실제 모델)</button><button data-t="kiln">로타리 킬른</button><button data-t="rfcc">RFCC 재생기</button><button data-t="inc">소각로</button><button data-t="inc_melt">용융로형</button><button data-t="inc_grate">화격자형</button><button data-t="rh">가열로</button><button data-t="bf">고로</button><button data-t="sr">2차 개질로</button><button data-t="ab">Claus Thermal Reactor</button><button data-t="cfb">화력 보일러</button><button data-t="ontology">온톨로지 그래프</button><button data-t="maintenance">생산 시퀀스·정비 준비</button></div>
+<div class="tabs" id="tabs"><button data-t="ladle" class="on">래들 (실제 모델)</button><button data-t="kiln">로타리 킬른</button><button data-t="rfcc">RFCC 재생기</button><button data-t="inc">소각로</button><button data-t="inc_melt">용융로형</button><button data-t="inc_grate">화격자형</button><button data-t="rh">가열로</button><button data-t="bf">고로</button><button data-t="sr">2차 개질로</button><button data-t="ab">Claus Thermal Reactor</button><button data-t="cfb">화력 보일러</button><button data-t="steelworks">제철소 공정 학습</button><button data-t="ontology">온톨로지 그래프</button><button data-t="maintenance">생산 시퀀스·정비 준비</button></div>
+<div id="p_steelworks" hidden>
+<div class="sub">교육용 통합 화면 · 원료 → 고로 → 전로 → 2차 정련 → 연주 → 가열로 → 압연. 설비를 선택하면 단면·손상 메커니즘·정비 창을 연결해 설명합니다.</div>
+<div class="sw-hero">
+ <div><span class="sw-eyebrow">PROCESS → DAMAGE → MAINTENANCE → MILP</span><h2>제철소 공정과 내화물 정비 의사결정</h2><p>생산 흐름 속에서 어느 설비의 어느 부위가 왜 손상되고, 언제 정비할 수 있는지 따라가 보세요.</p></div>
+ <div class="sw-legend"><span><i class="sw-dot hot"></i>고온·용융물</span><span><i class="sw-dot refractory"></i>내화물</span><span><i class="sw-dot shell"></i>철피·구조물</span><span><i class="sw-dot wear"></i>손상 예시</span></div>
+</div>
+<div class="sw-panel">
+ <div class="sw-panel-head"><h3>1. 제철소 전체 공정 흐름</h3><span>설비를 누르면 아래 단면도가 바뀝니다</span></div>
+ <div class="sw-flow" id="sw_flow" role="group" aria-label="제철소 공정 흐름"></div>
+ <div class="sw-flow-caption" id="sw_flow_caption">공정 흐름을 선택하세요.</div>
+</div>
+<div class="sw-detail-grid">
+ <section class="sw-panel">
+  <div class="sw-panel-head"><h3>2. 선택 설비 단면도</h3><span id="sw_eq_tag">설비 선택</span></div>
+  <div id="sw_section" class="sw-section"></div>
+  <div class="sw-section-legend"><span><i class="sw-swatch shell"></i>철피·외장</span><span><i class="sw-swatch backup"></i>단열·영구층</span><span><i class="sw-swatch hotface"></i>작업층 내화물</span><span><i class="sw-swatch metal"></i>용강·슬래그·열원</span><span><i class="sw-swatch damage"></i>손상 예시</span></div>
+  <p class="sw-small" id="sw_section_note"></p>
+ </section>
+ <section class="sw-panel">
+  <div class="sw-panel-head"><h3>3. 손상 메커니즘</h3><span>운전조건 → 열화 → 결과</span></div>
+  <div id="sw_damage" class="sw-damage"></div>
+  <div class="sw-callout" id="sw_inspection"></div>
+ </section>
+</div>
+<div class="sw-panel">
+ <div class="sw-panel-head"><h3>4. 정비 가능 시점과 제약</h3><span>정비창은 공장·설비·생산계획에 따라 달라집니다</span></div>
+ <div id="sw_windows" class="sw-windows"></div>
+ <p class="sw-small">중요: 정비 가능 시점은 단순히 설비가 쉬는 시간이 아닙니다. 용강·슬래그 배출, 냉각, 가스 프리, 격리(LOTO), 밀폐공간 허가, 비계·장비 반입, 건조·승온, 품질 확인이 모두 충족되어야 실제 작업창이 됩니다.</p>
+</div>
+<div class="sw-panel sw-milp">
+ <div class="sw-panel-head"><h3>5. 정비창을 MILP 배정으로 연결</h3><span>이진변수 xᵢₜ = 설비 i를 정비창 t에 배정하면 1</span></div>
+ <div class="sw-milp-flow"><div><b>설비별 상태</b><small>RUL · 정비 소요시간 · 비용</small></div><i>→</i><div><b>가능 정비창</b><small>정비 가능시간 · 작업 제약</small></div><i>→</i><div><b>MILP 최적화</b><small>비용·생산손실 최소화</small></div><i>→</i><div><b>정비 일정</b><small>설비별 배정 결과</small></div></div>
+ <div class="sw-equation">각 설비는 한 번 배정:　Σₜ xᵢₜ = 1　　/　　정비창 용량:　Σᵢ dᵢxᵢₜ ≤ Wₜ　　/　　xᵢₜ ∈ {0,1}</div>
+ <p class="sw-small">현재 대시보드 MILP는 생산 순서를 고정하고, 각 설비를 한 개의 정비창에 한 번 배정하는 프로토타입입니다. 실제 제철소의 동시작업 인력, 설비 간 선후행, 정비 후 수명 회복, 냉각·가스 프리, 안전 승인 등은 아직 모두 제약식에 들어가 있지 않습니다.</p>
+ <button type="button" class="sw-primary" id="sw_go_milp">생산 시퀀스·정비 준비 및 MILP 계산으로 이동</button>
+</div>
+<div class="sw-footnote"><b>도면 사용 범위:</b> 이 화면의 설비 단면은 구조와 손상 위치를 이해하기 위한 개념도입니다. 실제 설비 치수·내화물 두께·재질·손상 한계·정비 가능 시간은 각 제철소의 승인 도면, OEM 자료, 검사 실측값 및 작업허가 기준으로 대체해야 합니다.</div>
+</div>
 <div id="p_ladle">
 <div class="sub">SINTEF 공개 코드(refractorywear)를 공개 히트 7654321(래들 12번)을 기준으로, 조건을 바꿔 실제 모델을 다시 돌린 결과(324건)를 보간해요 · 새 라이닝에서 1히트 · 보간 오차 평균 약 5%, 최대 약 11% · 대기시간은 모델의 빈 래들 구간을 바꿔 다시 돌린 결과</div>
 <div class="ctl">
@@ -933,7 +986,8 @@ $("onto_info").innerHTML=html;
 $("onto_info").innerHTML="<h3>그래프 읽는 방법</h3><p>화살표 방향은 운전 조건 → 공정 상태 → 손상 메커니즘 → 손상 결과를 나타냅니다. 녹색 점선 화살표는 해당 손상 경로와 연관된 설비 부위를 나타냅니다. 노드를 선택하면 부위 속성과 연결 경로를 확인할 수 있습니다.</p><p><b>주의:</b> 연결은 현재 설비 설명을 구조화한 정성적 지식 관계입니다. 실측으로 검증된 인과관계나 마모량 기여도는 아닙니다.</p>";
 }
 function showTab(k){document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));
-$("p_ladle").hidden=k!=="ladle";$("p_eq").hidden=k==="ladle"||k==="ontology"||k==="maintenance";$("p_ontology").hidden=k!=="ontology";$("p_maintenance").hidden=k!=="maintenance";
+$("p_ladle").hidden=k!=="ladle";$("p_eq").hidden=k==="ladle"||k==="ontology"||k==="maintenance"||k==="steelworks";$("p_ontology").hidden=k!=="ontology";$("p_maintenance").hidden=k!=="maintenance";$("p_steelworks").hidden=k!=="steelworks";
+if(k==="steelworks"){if(window.steelworksLearningRender)window.steelworksLearningRender();return}
 if(k==="maintenance"){maintenanceRender();return}
 if(k==="ontology"){ontoRender();return}
 if(k==="ladle"){resize();return}
@@ -1167,6 +1221,7 @@ fix:["내화물 전이부와 사이클론 몸통 부분 재시공","앵커(스�
 note:"일반 구성 예시예요. 참고: CFB는 기동·정지 때 열 사이클로 박락이 생기고 미세 분진이 틈에 쌓인다고 알려져 있어요. "+GEN}};
 
 </script>
+<script src="steelworks-learning.js"></script>
 <script src="maintenance-planning.js"></script>
 <script src="milp-maintenance.js"></script>
 <script src="ontology-enhanced.js"></script>
