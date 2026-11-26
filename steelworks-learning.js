@@ -96,20 +96,35 @@
  }
  function escHtml(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
  function renderSchedule(){
-  const box=$("sw_schedule_table"),status=$("sw_schedule_status");if(!box||!status)return;
+  const box=$("sw_schedule_table"),status=$("sw_schedule_status"),fleet=$("sw_fleet_table"),fleetStatus=$("sw_fleet_status");
+  if(!box||!status)return;
   const seq=typeof window.maintenanceGetSequenceForMILP==="function"?window.maintenanceGetSequenceForMILP():[];
+  const jobs=typeof window.maintenanceGetJobsForMILP==="function"?window.maintenanceGetJobsForMILP():[];
   const solution=window.maintenanceLastMILPAssignments;
-  if(!seq.length){status.textContent="생산 시퀀스가 없습니다. ‘생산 시퀀스·정비 준비’에서 단계를 입력하세요.";box.innerHTML="";return;}
   const assigned=solution&&Array.isArray(solution.chosen)?solution.chosen:[];
-  status.textContent=solution?"MILP 결과 반영: "+solution.status+" · 목적함수 "+Number(solution.objective).toFixed(1)+"만원 · 배정 "+assigned.length+"건":"생산 시퀀스 "+seq.length+"단계 확인 · 아직 MILP 계산 결과가 없습니다. 아래 표는 생산 순서만 표시합니다.";
-  const rows=seq.map((p,i)=>{
-   const jobs=assigned.filter(a=>a.period===i+1);
-   const exposure=seq.slice(0,i).reduce((a,x)=>a+(Number(x.load)/100)*Number(x.hours),0);
-   const barWidth=Math.max(8,Math.min(100,Number(p.load)||0));
-   const jobText=jobs.length?jobs.map(x=>escHtml(x.name)+" · "+Number(x.duration).toFixed(1)+"h").join("<br>"):"—";
-   return '<tr class="'+(jobs.length?'sw-has-job':'')+'"><td>'+(i+1)+'</td><td><b>'+escHtml(p.name)+'</b><div class="sw-small">'+escHtml(p.condition||"")+'</div></td><td>'+Number(p.load).toFixed(0)+'%</td><td>'+Number(p.hours).toFixed(1)+' h</td><td>'+exposure.toFixed(1)+' h</td><td>'+Number(p.window).toFixed(1)+' h</td><td><div class="sw-timebar"><span class="sw-bar production" style="width:'+barWidth+'px"></span>'+jobText+'</div></td><td>'+(jobs.length?'<b style="color:#bd7b39">정비 배정</b>':'생산 단계')+'</td></tr>';
+  const cond=[
+   {thick:"82",temp:"185",grade:"주의",cls:"critical",note:"슬래그 라인 마모·쉘 온도 추세 확인"},
+   {thick:"95",temp:"160",grade:"관찰",cls:"",note:"두께 추세 관찰·다음 정비창 검토"},
+   {thick:"110",temp:"145",grade:"양호",cls:"ok",note:"정상 운전·정기 점검"},
+   {thick:"125",temp:"130",grade:"양호",cls:"ok",note:"정상 운전·정기 점검"}
+  ];
+  if(fleet&&fleetStatus){
+   fleetStatus.textContent=solution?"MILP 입력 설비 "+jobs.length+"대 · 정비 배정 "+assigned.length+"대 · 솔버 "+solution.status:"4대 래들 예시 컨디션. MILP 계산 전이며, 아래 RUL·정비시간이 계산 입력값입니다.";
+   fleet.innerHTML='<table class="sw-fleet-table"><thead><tr><th>설비</th><th>내화물 잔여두께</th><th>쉘 온도</th><th>컨디션</th><th>RUL</th><th>정비시간</th><th>정비 배정</th><th>판정 근거/점검</th></tr></thead><tbody>'+
+    jobs.map((job,i)=>{const c=cond[i]||{thick:"-",temp:"-",grade:"입력 필요",cls:"",note:"현장 실측값 입력"};const chosen=assigned.find(a=>a.name===job.name);return '<tr><td><b>'+escHtml(job.name)+'</b></td><td>'+(c.thick==="-"?"-":c.thick+" mm")+'</td><td>'+(c.temp==="-"?"-":c.temp+" °C")+'</td><td><span class="sw-condition-pill '+c.cls+'">'+c.grade+'</span></td><td><b>'+escHtml(job.life)+' h</b></td><td>'+escHtml(job.duration)+' h</td><td>'+(chosen?'<span class="sw-assigned">제'+chosen.period+' 정비창</span>':'<span class="sw-not-assigned">미배정</span>')+'</td><td>'+c.note+'</td></tr>'}).join("")+
+   '</tbody></table>';
+  }
+  if(!seq.length){status.textContent="생산 시퀀스가 없습니다. 생산 시퀀스를 먼저 입력하세요.";box.innerHTML="";return;}
+  status.textContent=solution?"MILP 결과: "+solution.status+" · 목적함수 "+Number(solution.objective).toFixed(1)+"만원 · 래들 정비 "+assigned.length+"대 배정":"생산 시퀀스 "+seq.length+"단계 · MILP 계산 전입니다. 계산 후 래들별 정비창이 채워집니다.";
+  const headers=seq.map((p,i)=>'<th>제'+(i+1)+' 정비창<br><small>'+escHtml(p.name)+'</small><br><small>가용 '+Number(p.window).toFixed(1)+'h</small></th>').join("");
+  const rows=jobs.map((job,i)=>{
+   const c=cond[i]||{thick:"-",temp:"-",grade:"-",cls:""};
+   const a=assigned.find(x=>x.name===job.name);
+   const cells=seq.map((p,t)=>{const hit=a&&a.period===t+1;return '<td class="'+(hit?'sw-has-job':'')+'">'+(hit?'<b class="sw-assigned">정비 '+Number(a.duration).toFixed(1)+'h</b><div class="sw-small">비용 '+Number(a.cost).toFixed(0)+'만원</div>': '<span class="sw-not-assigned">—</span>')+'</td>'}).join("");
+   return '<tr><td><b>'+escHtml(job.name)+'</b><div class="sw-small">'+c.grade+' · 잔여 '+escHtml(job.life)+'h</div></td><td>'+escHtml(job.duration)+'h</td>'+cells+'<td>'+(a?'제'+a.period+' 창 배정':'미배정')+'</td></tr>';
   }).join("");
-  box.innerHTML='<table><thead><tr><th>순서</th><th>생산 단계</th><th>부하</th><th>운전시간</th><th>단계 시작 전 누적 부하시간</th><th>정비창</th><th>MILP 정비 배정</th><th>구분</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  box.innerHTML='<table><thead><tr><th>래들 / 컨디션</th><th>필요 정비시간</th>'+headers+'<th>최종 MILP 판정</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+   '<div class="sw-small" style="margin-top:8px">생산 단계 조건: '+seq.map((p,i)=>'제'+(i+1)+' '+escHtml(p.condition)+' ('+p.load+'%, '+p.hours+'h)').join('　/　')+'</div>';
  }
  window.addEventListener("maintenance-sequence-updated",()=>{window.maintenanceLastMILPAssignments=null;renderSchedule();});
  window.addEventListener("maintenance-milp-result",renderSchedule);
