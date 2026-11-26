@@ -133,7 +133,7 @@
       binaries,
       bounds
     };
-    const result = glpk.solve(lp,{msglev:glpk.GLP_MSG_OFF,presol:true});
+    const result = await glpk.solve(lp,{msglev:glpk.GLP_MSG_OFF,presol:true});
     if (result.status !== glpk.GLP_OPT && result.status !== glpk.GLP_FEAS) {
       out.innerHTML = "<b>실행 가능한 일정이 없습니다.</b><br>각 설비의 잔여 허용 부하시간, 정비 가능시간, 정비 소요시간, 기간 수를 확인하세요. 정비 가능시간을 늘리거나 생산 시퀀스·정비 대상 범위를 조정해야 할 수 있습니다.";
       return;
