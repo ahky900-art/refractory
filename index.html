@@ -378,23 +378,37 @@ N_i=\min\left\{n\geq0:\max_{s,d}W_{i,s,d,m+n}\geq1-r_{\rm crit}\right\}
 <div class="maint-panel" id="milp_panel">
  <h2>생산 시퀀스 연계 MILP 정비 최적화</h2>
  <div class="maint-note">입력한 생산 단계별 부하·운전시간을 기준으로, 각 설비의 잔여 허용 부하가중 운전시간(RUL) 안에서 정비 시점을 배정합니다. 각 단계의 정비 가능시간은 해당 생산 단계 시작 전 확보된 정지창을 뜻합니다. 정비 가능시간과 예산, 정비비, 생산손실 환산비를 만족하는 최소비용 조합을 계산합니다.</div>
+ <div class="maint-panel" id="milp_formula_panel">
+  <h3>생산 시퀀스가 MILP 수식에 반영되는 방식</h3>
+  <div class="maint-note">각 생산 단계 k의 부하율을 Lₖ(%) , 운전시간을 Hₖ(h)라고 하면 부하가중 노출은 다음과 같습니다.</div>
+  <div class="hf-formula" style="margin:8px 0">eₖ = (Lₖ / 100) × Hₖ　　Eₜ = Σₖ&lt;ₜ eₖ</div>
+  <p class="maint-note">Eₜ는 t단계 시작 전까지 누적된 부하가중 운전시간입니다. 설비 i의 잔여 허용 부하가중 시간 RULᵢ 이내여야 해당 단계에서 정비할 수 있습니다.</p>
+  <div class="hf-formula" style="margin:8px 0">xᵢₜ ∈ {0,1}　　Σₜ xᵢₜ = 1　　Eₜ ≤ RULᵢ</div>
+  <p class="maint-note">xᵢₜ=1이면 설비 i를 t단계 시작 전 정비합니다. 단계별 정비창 Wₜ에는 배정된 정비시간 합계가 들어가야 합니다.</p>
+  <div class="hf-formula" style="margin:8px 0">Σᵢ dᵢxᵢₜ ≤ Wₜ　　zₜ ≥ (Lₜ/100) × Σᵢ dᵢxᵢₜ</div>
+  <p class="maint-note">현재 코드의 목적함수는 min Σᵢₜ cᵢxᵢₜ + λΣₜzₜ 입니다. cᵢ는 정비비, dᵢ는 정비시간, λ는 부하가중 생산손실 환산비입니다. zₜ는 실제 톤 손실이 아니라 부하가중 정비시간의 대리 지표입니다.</p>
+  <div class="maint-seq-table"><table><thead><tr><th>생산 단계</th><th>부하율</th><th>운전시간</th><th>부하가중 노출</th></tr></thead><tbody>
+   <tr><td>기준 조업</td><td>100%</td><td>8h</td><td>8.0h</td></tr><tr><td>고부하 조업</td><td>120%</td><td>8h</td><td>9.6h</td></tr><tr><td>원료 전환</td><td>90%</td><td>6h</td><td>5.4h</td></tr>
+  </tbody></table></div>
+  <div class="maint-note"><b>중요:</b> 이 시퀀스 연계 MILP는 현재 시간 단위 정비창 배정 예제입니다. 14일(28교대) 정비를 계산하는 가열로 전용 MILP와는 별도 모델입니다. 이 화면의 8시간 정비 예시를 실제 가열로 14일 정비 일정으로 해석하면 안 됩니다.</div>
+ </div>
  <div class="milp-example">
   <b>먼저 예시로 이해하기</b>
-  <div class="maint-note">가상의 3단계 생산계획입니다. 초록 막대는 부하 수준을 나타내며, 정비 가능시간은 각 단계가 시작되기 직전 확보한 정지창입니다.</div>
+  <div class="maint-note">가열로 정비창 배정의 간이 예시입니다. 초록 막대는 부하율이며, 각 단계 시작 전 정비 가능시간을 별도로 둡니다.</div>
   <div class="milp-example-grid">
    <div class="milp-example-stage"><b>① 기준 조업</b><strong>100%</strong><small>운전 8시간 · 정비창 12시간</small><div class="milp-example-flow"><i style="width:83%"></i></div><small>누적 부하가중 노출: 0시간부터</small></div>
    <div class="milp-example-stage"><b>② 고부하 생산</b><strong>120%</strong><small>운전 8시간 · 정비창 12시간</small><div class="milp-example-flow"><i style="width:100%"></i></div><small>누적 부하가중 노출: 8시간부터</small></div>
    <div class="milp-example-stage"><b>③ 원료 전환</b><strong>90%</strong><small>운전 6시간 · 정비창 12시간</small><div class="milp-example-flow"><i style="width:75%"></i></div><small>누적 부하가중 노출: 17.6시간부터</small></div>
   </div>
-  <div class="milp-example-table"><table><thead><tr><th>래들</th><th>내화물 잔여두께</th><th>쉘 온도</th><th>상태</th><th>RUL</th><th>정비시간</th></tr></thead><tbody>
-   <tr><td>래들 1</td><td>82 mm</td><td>185°C</td><td>주의</td><td>7 h</td><td>8 h</td></tr>
-   <tr><td>래들 2</td><td>95 mm</td><td>160°C</td><td>관찰</td><td>12 h</td><td>8 h</td></tr>
-   <tr><td>래들 3</td><td>110 mm</td><td>145°C</td><td>양호</td><td>18 h</td><td>6 h</td></tr>
-   <tr><td>래들 4</td><td>125 mm</td><td>130°C</td><td>양호</td><td>22 h</td><td>5 h</td></tr>
+  <div class="milp-example-table"><table><thead><tr><th>가열로</th><th>내화물 잔여두께</th><th>쉘 온도</th><th>상태</th><th>RUL</th><th>정비시간</th></tr></thead><tbody>
+   <tr><td>가열로 1호</td><td>82 mm</td><td>185°C</td><td>주의</td><td>7 h</td><td>8 h</td></tr>
+   <tr><td>가열로 2호</td><td>95 mm</td><td>160°C</td><td>관찰</td><td>12 h</td><td>8 h</td></tr>
+   <tr><td>가열로 3호</td><td>110 mm</td><td>145°C</td><td>양호</td><td>18 h</td><td>6 h</td></tr>
+   <tr><td>가열로 4호</td><td>125 mm</td><td>130°C</td><td>양호</td><td>22 h</td><td>5 h</td></tr>
   </tbody></table></div>
   <div class="milp-example-hint"><b>계산 논리:</b> 정비를 늦추면 누적 부하가 RUL을 넘을 수 있습니다. 동시에 한 정비창에서 가능한 총 정비시간은 그 창의 정비 가능시간을 넘을 수 없습니다. 아래 버튼을 누르면 이 숫자가 실제 입력칸에 채워집니다.</div>
-  <div class="maint-actions"><button type="button" id="milp_load_example">4대 래들 예시 자동 입력</button></div>
-  <div id="milp_example_status" class="maint-note" aria-live="polite">4대 래들의 상태·RUL·정비시간과 생산 시퀀스가 입력됩니다. 이후 MILP 계산을 실행하면 각 래들의 정비창이 공정표에 표시됩니다.</div>
+  <div class="maint-actions"><button type="button" id="milp_load_example">가열로 4대 시간단위 예시 자동 입력</button></div>
+  <div id="milp_example_status" class="maint-note" aria-live="polite">가열로 4대의 예시 입력이 채워집니다. 시간단위 정비창 배정 예제이며, 14일 가열로 정비 MILP와는 별도 모델입니다.</div>
  </div>
  <div class="maint-seq-table" style="margin-top:10px"><table><thead><tr><th>정비 대상 설비</th><th>잔여 허용 부하가중 운전시간(h)</th><th>정비 소요시간(h)</th><th>정비비용(만원)</th><th>삭제</th></tr></thead><tbody id="milp_job_rows"></tbody></table></div>
  <div class="maint-actions"><button type="button" id="milp_add_job">+ 정비 대상 설비 추가</button></div>
