@@ -136,6 +136,14 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 .sw-schedule-status{font-size:12px;color:var(--mut);margin:4px 0 9px}.sw-schedule-table{overflow-x:auto}.sw-schedule-table table{width:100%;min-width:720px;border-collapse:collapse;font-size:12px}.sw-schedule-table th,.sw-schedule-table td{padding:8px 7px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}.sw-schedule-table th{color:var(--mut);font-weight:600}.sw-schedule-table tr.sw-has-job{background:rgba(195,132,61,.08)}.sw-timebar{display:flex;align-items:center;gap:5px;min-width:180px}.sw-bar{display:inline-block;height:10px;border-radius:4px;vertical-align:middle}.sw-bar.production{width:22px;background:#6c9d89}.sw-bar.maintenance{width:22px;background:#d58a3f}.sw-bar.noassign{width:22px;background:#aab1b8}.sw-timebar .sw-bar{height:13px}.sw-schedule-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--mut);margin-top:9px}.sw-schedule-legend .sw-bar{margin-right:4px}
 
 .sw-fleet-table td,.sw-fleet-table th{white-space:nowrap}.sw-condition-pill{display:inline-block;padding:2px 8px;border-radius:20px;background:var(--warn);color:var(--warnt);font-size:11px}.sw-condition-pill.ok{background:var(--ok);color:var(--okt)}.sw-condition-pill.critical{background:var(--bad);color:var(--badt)}.sw-assigned{font-weight:700;color:#b56f28}.sw-not-assigned{color:var(--mut)}
+
+/* 14-day reheating furnace MILP planner */
+.hf-assumption{padding:10px 12px;border-left:4px solid #bd843e;background:var(--bg);font-size:12px;line-height:1.6;margin-bottom:10px}
+.hf-sequence-head,.hf-gantt-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin:14px 0 7px}.hf-sequence-head span,.hf-gantt-head span{font-size:11px;color:var(--mut)}
+.hf-shift-sequence{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.hf-day{border:1px solid var(--line);border-radius:7px;padding:6px;background:var(--bg);font-size:10px}.hf-day b{display:block;font-size:11px;margin-bottom:3px}.hf-day span{display:block;color:var(--mut)}.hf-model-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.hf-model-card{border:1px solid var(--line);border-radius:9px;padding:11px;background:var(--bg)}.hf-model-card>b{font-size:12px}.hf-formula{font-size:13px;font-weight:650;margin:8px 0;line-height:1.7}.hf-model-card p{font-size:11px;color:var(--mut);margin:0;line-height:1.6}
+.hf-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}.hf-actions span{font-size:12px;color:var(--mut)}.hf-result{font-size:12px;margin-top:10px;line-height:1.7}.hf-gantt{overflow-x:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px}.hf-gantt-grid{display:grid;grid-template-columns:100px repeat(56,minmax(15px,1fr));min-width:1050px;gap:2px;align-items:stretch}.hf-gantt-label{font-size:11px;font-weight:650;display:flex;align-items:center;padding:3px}.hf-gantt-day{grid-column:span 2;text-align:center;font-size:10px;color:var(--mut);border-bottom:1px solid var(--line);padding:3px}.hf-gantt-shift{font-size:8px;text-align:center;color:var(--mut);padding:2px 0}.hf-gantt-cell{height:24px;border-radius:3px;background:#dce9e2;position:relative}.hf-gantt-cell.maint{background:#d88b3f}.hf-gantt-cell.risk{background:#e9b5b5}.hf-gantt-cell.maint:after{content:"정비";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#38210b;font-weight:700}.hf-key{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}.hf-key.prod{background:#dce9e2}.hf-key.maint{background:#d88b3f}.hf-key.risk{background:#e9b5b5}.hf-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--mut);margin-top:8px}
+@media(max-width:700px){.hf-model-grid{grid-template-columns:1fr}.hf-shift-sequence{grid-template-columns:repeat(4,minmax(0,1fr))}.hf-sequence-head,.hf-gantt-head{display:block}}
 </style>
 </head>
 <body>
@@ -153,7 +161,23 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
  <div class="sw-flow" id="sw_flow" role="group" aria-label="제철소 공정 흐름"></div>
  <div class="sw-flow-caption" id="sw_flow_caption">공정 흐름을 선택하세요.</div>
 </div>
-<div class="sw-detail-grid">
+<div class="sw-panel" id="hf_milp_panel">
+ <div class="sw-panel-head"><h3>가열로 4대 상태 및 정비 대상 선정</h3><span>14일 정비 · 주간/야간 2교대</span></div>
+ <div class="hf-assumption">모델 가정: 4대 가열로가 병렬 운전되며, 1대 정비 중 나머지 3대가 해당 교대 생산량을 충족할 수 있다고 가정합니다. 수치와 설비 컨디션은 가상 예시입니다.</div>
+ <div id="hf_condition_table" class="sw-schedule-table"></div>
+ <div class="hf-sequence-head"><b>고정 생산 시퀀스</b><span>28일 × 주간/야간 = 56개 교대</span></div>
+ <div id="hf_shift_sequence" class="hf-shift-sequence"></div>
+ <div class="hf-model-grid">
+  <div class="hf-model-card"><b>목적함수</b><div class="hf-formula">최소화　정비비용 + 정비 지연 위험비용 + 생산 부족 페널티</div><p>정비를 미루면 위험도가 높은 가열로의 잔여수명 초과 위험비용이 커집니다. 생산능력 부족은 제약식으로 막습니다.</p></div>
+  <div class="hf-model-card"><b>핵심 제약조건</b><div class="hf-formula">Σᵢₛ xᵢₛ = 1　/　14일 연속 정비　/　교대별 공급능력 ≥ 수요　/　정비 시작 ≤ RUL</div><p>xᵢₛ=1이면 가열로 i를 시작 교대 s부터 28교대(14일) 정비합니다. 나머지는 0입니다.</p></div>
+ </div>
+ <div class="hf-actions"><button class="sw-primary" id="hf_run">가열로 4대 MILP 정비 대상·시점 계산</button><span id="hf_status">계산 전: 가상 컨디션과 생산 시퀀스를 확인하세요.</span></div>
+ <div id="hf_result" class="hf-result"></div>
+ <div class="hf-gantt-head"><b>28일 생산·정비 간트차트</b><span>각 일자 칸은 주간(D)·야간(N) 2개 교대로 분리됩니다.</span></div>
+ <div id="hf_gantt" class="hf-gantt"></div>
+ <div class="hf-legend"><span><i class="hf-key prod"></i>생산 가능</span><span><i class="hf-key maint"></i>MILP 정비</span><span><i class="hf-key risk"></i>정비 권고시점 경과</span></div>
+ <p class="sw-small">모델 범위: 정비 대상 1대, 정비기간 14일(28교대), 계획기간 28일(56교대). 실제 가열로의 독립 운전 가능 여부, 제품별 배정, 열량·장입량·슬래브 재고, 냉각·가스 프리·비계·건조 승온 및 정비 인력 제약은 현장 데이터로 추가해야 합니다. 이 계산은 교육용 계획 모델이며 작업허가나 안전판정을 대체하지 않습니다.</p>
+</div><div class="sw-detail-grid">
  <section class="sw-panel">
   <div class="sw-panel-head"><h3>2. 선택 설비 단면도</h3><span id="sw_eq_tag">설비 선택</span></div>
   <div id="sw_section" class="sw-section"></div>
@@ -171,25 +195,8 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
  <div id="sw_windows" class="sw-windows"></div>
  <p class="sw-small">중요: 정비 가능 시점은 단순히 설비가 쉬는 시간이 아닙니다. 용강·슬래그 배출, 냉각, 가스 프리, 격리(LOTO), 밀폐공간 허가, 비계·장비 반입, 건조·승온, 품질 확인이 모두 충족되어야 실제 작업창이 됩니다.</p>
 </div>
-<div class="sw-panel sw-milp">
- <div class="sw-panel-head"><h3>5. 정비창을 MILP 배정으로 연결</h3><span>이진변수 xᵢₜ = 설비 i를 정비창 t에 배정하면 1</span></div>
- <div class="sw-milp-flow"><div><b>설비별 상태</b><small>RUL · 정비 소요시간 · 비용</small></div><i>→</i><div><b>가능 정비창</b><small>정비 가능시간 · 작업 제약</small></div><i>→</i><div><b>MILP 최적화</b><small>비용·생산손실 최소화</small></div><i>→</i><div><b>정비 일정</b><small>설비별 배정 결과</small></div></div>
- <div class="sw-equation">각 설비는 한 번 배정:　Σₜ xᵢₜ = 1　　/　　정비창 용량:　Σᵢ dᵢxᵢₜ ≤ Wₜ　　/　　xᵢₜ ∈ {0,1}</div>
- <p class="sw-small">현재 대시보드 MILP는 생산 순서를 고정하고, 각 설비를 한 개의 정비창에 한 번 배정하는 프로토타입입니다. 실제 제철소의 동시작업 인력, 설비 간 선후행, 정비 후 수명 회복, 냉각·가스 프리, 안전 승인 등은 아직 모두 제약식에 들어가 있지 않습니다.</p>
- <button type="button" class="sw-primary" id="sw_go_milp">생산 시퀀스·정비 준비 및 MILP 계산으로 이동</button>
-</div>
-<div class="sw-panel" id="sw_ladle_fleet">
- <div class="sw-panel-head"><h3>6. 래들 4대 상태 현황</h3><span>컨디션 → RUL → MILP 정비 여부</span></div>
- <div class="sw-schedule-status" id="sw_fleet_status">4대 래들 예시 데이터입니다. 실제 현장 실측값으로 교체하세요.</div>
- <div id="sw_fleet_table" class="sw-schedule-table"></div>
- <p class="sw-small">예시의 잔여두께·쉘 온도·상태등급은 설명을 위한 가상값입니다. 현재 MILP가 직접 사용하는 상태 변수는 RUL(잔여 허용 부하가중 운전시간), 정비 소요시간, 정비비용입니다. 두께·온도에서 RUL을 자동 추정하는 모델은 아직 연결되지 않았습니다.</p>
-</div><div class="sw-panel" id="sw_schedule_panel">
- <div class="sw-panel-head"><h3>6. MILP 반영 생산·정비 통합 공정표</h3><span>계산 결과가 이 표에 직접 표시됩니다</span></div>
- <div class="sw-schedule-status" id="sw_schedule_status">생산 시퀀스를 불러오는 중입니다. MILP 계산 전에는 공정 순서만 표시됩니다.</div>
- <div id="sw_schedule_table" class="sw-schedule-table"></div>
- <div class="sw-schedule-legend"><span><i class="sw-bar production"></i>생산 운전</span><span><i class="sw-bar maintenance"></i>MILP 정비 배정</span><span><i class="sw-bar noassign"></i>정비 배정 없음</span></div>
- <p class="sw-small">정비 배정 결과는 MILP 솔버가 반환한 선택 변수 xᵢₜ를 사용합니다. 현재 모델은 생산 시퀀스가 고정되어 있으며, 정비를 배정한 단계의 시작 전 정지창에서 작업한다고 가정합니다.</p>
-</div><div class="sw-footnote"><b>도면 사용 범위:</b> 이 화면의 설비 단면은 구조와 손상 위치를 이해하기 위한 개념도입니다. 실제 설비 치수·내화물 두께·재질·손상 한계·정비 가능 시간은 각 제철소의 승인 도면, OEM 자료, 검사 실측값 및 작업허가 기준으로 대체해야 합니다.</div>
+
+<div class="sw-footnote"><b>도면 사용 범위:</b> 이 화면의 설비 단면은 구조와 손상 위치를 이해하기 위한 개념도입니다. 실제 설비 치수·내화물 두께·재질·손상 한계·정비 가능 시간은 각 제철소의 승인 도면, OEM 자료, 검사 실측값 및 작업허가 기준으로 대체해야 합니다.</div>
 </div>
 <div id="p_ladle">
 <div class="sub">SINTEF 공개 코드(refractorywear)를 공개 히트 7654321(래들 12번)을 기준으로, 조건을 바꿔 실제 모델을 다시 돌린 결과(324건)를 보간해요 · 새 라이닝에서 1히트 · 보간 오차 평균 약 5%, 최대 약 11% · 대기시간은 모델의 빈 래들 구간을 바꿔 다시 돌린 결과</div>
@@ -1238,6 +1245,7 @@ note:"일반 구성 예시예요. 참고: CFB는 기동·정지 때 열 사이�
 
 </script>
 <script src="steelworks-learning.js"></script>
+<script src="heating-furnace-milp.js"></script>
 <script src="maintenance-planning.js"></script>
 <script src="milp-maintenance.js"></script>
 <script src="ontology-enhanced.js"></script>
