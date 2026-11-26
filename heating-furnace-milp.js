@@ -71,7 +71,7 @@
     const name=x(i,s),f=furnaces[i];vars.push(name);starts.push({name,coef:1});
     // Avoidable failure-loss benefit is subtracted because exactly one asset is selected.
     objective.push({name,coef:f.cost+f.delay*(s/2)-f.risk});
-    if(s/2>f.rul)bounds.push({name,type:g.GLP_FX,lb:0,ub:0});
+    if(Math.floor(s/2)+1>f.rul)bounds.push({name,type:g.GLP_FX,lb:0,ub:0});
    }
    constraints.push({name:"one_start_"+i,vars:starts,bnds:{type:g.GLP_UP,lb:0,ub:1}});
   }
