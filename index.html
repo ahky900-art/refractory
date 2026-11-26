@@ -283,8 +283,22 @@ N_i=\min\left\{n\geq0:\max_{s,d}W_{i,s,d,m+n}\geq1-r_{\rm crit}\right\}
 <div class="maint-panel">
  <h2>생산 시퀀스 입력</h2>
  <div class="maint-note">계획된 제품·원료·연료 전환과 부하를 순서대로 입력합니다. 이 표는 계획 입력용이며 현재는 ERP/MES와 자동 연동되지 않습니다.</div>
- <div id="maint_seq_total" class="maint-note" style="margin:7px 0"></div><div class="maint-seq-table"><table><thead><tr><th>순서</th><th>공정·제품 단계</th><th>원료·연료·분위기 변화</th><th>부하 (%)</th><th>기간 (시간)</th><th>삭제</th></tr></thead><tbody id="maint_seq_rows"></tbody></table></div>
+ <div id="maint_seq_total" class="maint-note" style="margin:7px 0"></div><div class="maint-seq-table"><table><thead><tr><th>순서</th><th>공정·제품 단계</th><th>원료·연료·분위기 변화</th><th>부하 (%)</th><th>기간 (시간)</th><th>해당 단계 시작 전 정비 가능시간 (h)</th><th>삭제</th></tr></thead><tbody id="maint_seq_rows"></tbody></table></div>
  <div class="maint-actions"><button type="button" id="maint_add_seq">+ 생산 단계 추가</button><button type="button" id="maint_reset_seq">시퀀스 초기화</button><button type="button" id="maint_print">정비계획 인쇄</button><button type="button" id="maint_reset">체크리스트 초기화</button></div>
+</div>
+<div class="maint-panel" id="milp_panel">
+ <h2>생산 시퀀스 연계 MILP 정비 최적화</h2>
+ <div class="maint-note">입력한 생산 단계별 부하·운전시간을 기준으로, 각 설비의 잔여 허용 부하가중 운전시간(RUL) 안에서 정비 시점을 배정합니다. 각 단계의 정비 가능시간은 해당 생산 단계 시작 전 확보된 정지창을 뜻합니다. 정비 가능시간과 예산, 정비비, 생산손실 환산비를 만족하는 최소비용 조합을 계산합니다.</div>
+ <div class="maint-seq-table" style="margin-top:10px"><table><thead><tr><th>정비 대상 설비</th><th>잔여 허용 부하가중 운전시간(h)</th><th>정비 소요시간(h)</th><th>정비비용(만원)</th><th>삭제</th></tr></thead><tbody id="milp_job_rows"></tbody></table></div>
+ <div class="maint-actions"><button type="button" id="milp_add_job">+ 정비 대상 설비 추가</button></div>
+ <div class="maint-toolbar" style="margin-top:10px">
+  <div><label for="milp_downtime_penalty">생산손실 환산비 (만원 / 부하가중 시간)</label><input id="milp_downtime_penalty" type="number" min="0" step="1" value="100"></div>
+  <div><label for="milp_budget">전체 정비 예산 상한 (만원, 선택)</label><input id="milp_budget" type="number" min="0" step="10" placeholder="공란이면 예산 제약 없음"></div>
+ </div>
+ <div id="milp_sequence_status" class="maint-note" style="margin:8px 0">생산 시퀀스 입력값을 불러오는 중입니다.</div>
+ <div class="maint-actions"><button type="button" id="milp_run">MILP 최적 정비 일정 계산</button></div>
+ <div id="milp_result" class="maint-gate" aria-live="polite">설비별 RUL·정비시간·비용과 생산 단계별 정비 가능시간을 입력한 뒤 최적화를 실행하세요.</div>
+ <div class="maint-note" style="margin-top:9px"><b>모델 범위와 한계:</b> 현재 버전은 생산 시퀀스 순서를 고정하고 각 설비를 한 번씩 정비 가능 창에 배정하는 이진변수 기반 MILP입니다. 목적함수는 정비비용과 부하가중 생산손실 환산비의 합이며, RUL은 정비 시점의 하드 제약으로 사용합니다. 실제 생산량·매출 손실, 정비업체·작업조별 동시 작업 한도, 자재 납기, 정비 후 수명 회복량, 불확실성 및 다기간 재계획은 아직 모델링하지 않았습니다. 값은 현장 자료로 보정해야 하며, 결과는 계획 지원용으로 안전·품질 승인이나 제조사 Dry-out 절차를 대체하지 않습니다.</div>
 </div>
 <div class="maint-columns">
  <div class="maint-panel">
@@ -1124,7 +1138,9 @@ fix:["내화물 전이부와 사이클론 몸통 부분 재시공","앵커(스�
 note:"일반 구성 예시예요. 참고: CFB는 기동·정지 때 열 사이클로 박락이 생기고 미세 분진이 틈에 쌓인다고 알려져 있어요. "+GEN}};
 
 </script>
+<script src="https://cdn.jsdelivr.net/npm/glpk.js@4.0.2/dist/glpk.min.js"></script>
 <script src="maintenance-planning.js"></script>
+<script src="milp-maintenance.js"></script>
 <script src="ontology-enhanced.js"></script>
 </body>
 </html>
