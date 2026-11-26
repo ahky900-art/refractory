@@ -44,15 +44,19 @@
   for(let d=1;d<=DAYS;d++)html+='<div class="hf-gantt-day">D'+d+'</div>';
   html+='<div class="hf-gantt-label"></div>';
   for(let t=0;t<SHIFTS;t++)html+='<div class="hf-gantt-shift">'+(t%2===0?"주":"야")+'</div>';
+  const totalCapacity=furnaces.reduce((a,f)=>a+f.capacity,0);
+  html+='<div class="hf-gantt-label">생산 수요</div>';
+  for(let t=0;t<SHIFTS;t++)html+='<div class="hf-gantt-cell demand" title="'+seq[t].day+'일차 '+seq[t].shift+' · '+seq[t].demand+'t">'+(seq[t].demand/1000).toFixed(1)+'</div>';
+  html+='<div class="hf-gantt-label">가용능력</div>';
+  for(let t=0;t<SHIFTS;t++){const down=chosen&&t>=chosen.start&&t<chosen.start+DURATION;const cap=totalCapacity-(down?furnaces[chosen.i].capacity:0);html+='<div class="hf-gantt-cell capacity" title="가용 생산능력 '+cap+'t">'+(cap/1000).toFixed(1)+'</div>';}
   for(let i=0;i<furnaces.length;i++){
    html+='<div class="hf-gantt-label">'+furnaces[i].name+'</div>';
    for(let t=0;t<SHIFTS;t++){
     const active=chosen&&chosen.i===i&&t>=chosen.start&&t<chosen.start+DURATION;
     const demand=seq[t].demand;
-    const total=furnaces.reduce((a,f)=>a+f.capacity,0);
-    const remaining=total-(active?furnaces[i].capacity:0);
+    const remaining=totalCapacity-(active?furnaces[i].capacity:0);
     const cls=active?"maint":(remaining<demand?"risk":"prod");
-    const title=active?"14일 정비 중":("생산 가능 · 수요 "+demand+"t · 잔여능력 "+remaining+"t");
+    const title=active?"14일 연속 정비 중":("생산 가능 · 수요 "+demand+"t · 가용능력 "+remaining+"t");
     html+='<div class="hf-gantt-cell '+cls+'" title="'+title+'"></div>';
    }
   }
@@ -97,7 +101,7 @@
   for(let t=0;t<SHIFTS;t++){
    const active=[];
    for(let i=0;i<furnaces.length;i++)for(let s=Math.max(0,t-DURATION+1);s<=Math.min(t,SHIFTS-DURATION);s++)active.push({name:x(i,s),coef:1});
-   constraints.push({name:"one_outage_at_a_time_"+t,vars:active,bnds:{type:g.GLP_UP,lb:0,ub:1});
+   constraints.push({name:"one_outage_at_a_time_"+t,vars:active,bnds:{type:g.GLP_UP,lb:0,ub:1}});
   }
   const lp={name:"ReheatingFurnace14DayMaintenance",objective:{direction:g.GLP_MIN,name:"maintenance_and_deferral_risk",vars:objective},subjectTo:constraints,binaries:vars,bounds};
   const solved=await g.solve(lp,{msglev:g.GLP_MSG_OFF,presol:true});
