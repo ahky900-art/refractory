@@ -198,16 +198,16 @@
       }
       window.maintenanceSetSequenceForMILP(demoSequence);
       jobs.splice(0,jobs.length,
-        {name:"래들 1",life:"7",duration:"8",cost:"800"},
-        {name:"래들 2",life:"12",duration:"8",cost:"850"},
-        {name:"래들 3",life:"18",duration:"6",cost:"900"},
-        {name:"래들 4",life:"22",duration:"5",cost:"700"}
+        {name:"가열로 1호",life:"7",duration:"8",cost:"800"},
+        {name:"가열로 2호",life:"12",duration:"8",cost:"850"},
+        {name:"가열로 3호",life:"18",duration:"6",cost:"900"},
+        {name:"가열로 4호",life:"22",duration:"5",cost:"700"}
       );
       renderJobs();
       $("milp_downtime_penalty").value="100";
       $("milp_budget").value="3000";
-      $("milp_example_status").innerHTML="<b>예시 입력 완료.</b> 생산 시퀀스 3단계와 래들 4대의 조건·RUL·정비시간이 입력됐습니다. 이제 아래 ‘MILP 최적 정비 일정 계산’을 누르세요.";
-      $("milp_result").textContent="예시 값이 입력됐습니다. MILP 최적 정비 일정 계산을 실행하세요.";
+      $("milp_example_status").innerHTML="<b>예시 입력 완료.</b> 생산 시퀀스 3단계와 가열로 4대의 조건·RUL·정비시간이 입력됐습니다. 이제 아래 ‘MILP 최적 정비 일정 계산’을 누르세요.";
+      $("milp_result").textContent="가열로 4대의 시간단위 예시 값이 입력됐습니다. 이 예시는 14일 정비 전용 MILP와 구분됩니다. MILP 계산을 실행하세요.";
     });
     $("milp_run").addEventListener("click",()=>solve().catch(err=>{
       $("milp_result").textContent="MILP 계산 중 오류: "+(err && err.message ? err.message : String(err));
