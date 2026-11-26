@@ -94,9 +94,28 @@
   $("sw_inspection").innerHTML="<b>점검 데이터 포인트</b>"+s.inspect;
   $("sw_windows").innerHTML=s.windows.map(x=>'<div class="sw-window"><b>'+x[0]+'</b><p>'+x[1]+'</p></div>').join("");
  }
+ function escHtml(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+ function renderSchedule(){
+  const box=$("sw_schedule_table"),status=$("sw_schedule_status");if(!box||!status)return;
+  const seq=typeof window.maintenanceGetSequenceForMILP==="function"?window.maintenanceGetSequenceForMILP():[];
+  const solution=window.maintenanceLastMILPAssignments;
+  if(!seq.length){status.textContent="생산 시퀀스가 없습니다. ‘생산 시퀀스·정비 준비’에서 단계를 입력하세요.";box.innerHTML="";return;}
+  const assigned=solution&&Array.isArray(solution.chosen)?solution.chosen:[];
+  status.textContent=solution?"MILP 결과 반영: "+solution.status+" · 목적함수 "+Number(solution.objective).toFixed(1)+"만원 · 배정 "+assigned.length+"건":"생산 시퀀스 "+seq.length+"단계 확인 · 아직 MILP 계산 결과가 없습니다. 아래 표는 생산 순서만 표시합니다.";
+  const rows=seq.map((p,i)=>{
+   const jobs=assigned.filter(a=>a.period===i+1);
+   const exposure=seq.slice(0,i).reduce((a,x)=>a+(Number(x.load)/100)*Number(x.hours),0);
+   const barWidth=Math.max(8,Math.min(100,Number(p.load)||0));
+   const jobText=jobs.length?jobs.map(x=>escHtml(x.name)+" · "+Number(x.duration).toFixed(1)+"h").join("<br>"):"—";
+   return '<tr class="'+(jobs.length?'sw-has-job':'')+'"><td>'+(i+1)+'</td><td><b>'+escHtml(p.name)+'</b><div class="sw-small">'+escHtml(p.condition||"")+'</div></td><td>'+Number(p.load).toFixed(0)+'%</td><td>'+Number(p.hours).toFixed(1)+' h</td><td>'+exposure.toFixed(1)+' h</td><td>'+Number(p.window).toFixed(1)+' h</td><td><div class="sw-timebar"><span class="sw-bar production" style="width:'+barWidth+'px"></span>'+jobText+'</div></td><td>'+(jobs.length?'<b style="color:#bd7b39">정비 배정</b>':'생산 단계')+'</td></tr>';
+  }).join("");
+  box.innerHTML='<table><thead><tr><th>순서</th><th>생산 단계</th><th>부하</th><th>운전시간</th><th>단계 시작 전 누적 부하시간</th><th>정비창</th><th>MILP 정비 배정</th><th>구분</th></tr></thead><tbody>'+rows+'</tbody></table>';
+ }
+ window.addEventListener("maintenance-sequence-updated",renderSchedule);
+ window.addEventListener("maintenance-milp-result",renderSchedule);
  function init(){
   if(!$("sw_flow"))return;
-  render();
+  render();renderSchedule();
   $("sw_go_milp").onclick=()=>{if(typeof window.showTab==="function")window.showTab("maintenance");const p=$("milp_panel");if(p)p.scrollIntoView({behavior:"smooth",block:"start"});};
  }
  window.steelworksLearningRender=render;
