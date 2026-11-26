@@ -161,102 +161,71 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 @media(max-width:700px){.hf-model-grid{grid-template-columns:1fr}.hf-shift-sequence{grid-template-columns:repeat(4,minmax(0,1fr))}.hf-sequence-head,.hf-gantt-head{display:block}}
 
 .hf-gantt-cell.demand{height:24px;background:#d7e1ef;font-size:8px;text-align:center;color:#34465a;display:flex;align-items:center;justify-content:center}.hf-gantt-cell.capacity{height:24px;background:#dce9e2;font-size:8px;text-align:center;color:#234b3a;display:flex;align-items:center;justify-content:center}
+
+/* Integrated heating-furnace MILP tab */
+.table-wrap{overflow-x:auto}.table-wrap table{min-width:760px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.actions button{border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:7px 11px;border-radius:7px;cursor:pointer}
+.status{padding:10px;border-radius:8px;background:var(--card);margin:10px 0;font-size:13px}
+.status.ok{background:var(--ok)}.status.warn{background:var(--warn)}.status.error{background:var(--bad)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px;margin:10px 0}
+.kpi{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px}
+.kpi b{display:block;font-size:18px}.kpi span{font-size:11px;color:var(--mut)}
+.gantt{overflow-x:auto;border:1px solid var(--line);border-radius:8px;padding:8px}
+.gantt-grid{display:grid;grid-template-columns:105px repeat(56,minmax(13px,1fr));min-width:1050px;gap:2px}
+.glabel{font-size:10px;display:flex;align-items:center;padding:3px}.gday{grid-column:span 2;text-align:center;font-size:9px;color:var(--mut)}
+.gshift{font-size:8px;text-align:center;color:var(--mut)}.cell{height:22px;border-radius:2px;background:#dcefe5}
+.cell.maint{background:#d88b3f}.cell.demand{background:#d7e1ef;text-align:center;font-size:8px;color:#34465a}
+.cell.capacity{background:#dcefe5;text-align:center;font-size:8px;color:#234b3a}
+.sw-key{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}.sw-key.prod{background:#dcefe5}.sw-key.maint{background:#d88b3f}.sw-key.demand{background:#d7e1ef}
 </style>
 </head>
 <body>
 <div class="wrap">
 <h1>내화물 마모 대시보드</h1>
-<div class="tabs" id="tabs"><button data-t="ladle" class="on">래들 (실제 모델)</button><button data-t="kiln">로타리 킬른</button><button data-t="rfcc">RFCC 재생기</button><button data-t="inc">소각로</button><button data-t="inc_melt">용융로형</button><button data-t="inc_grate">화격자형</button><button data-t="rh">가열로</button><button data-t="bf">고로</button><button data-t="sr">2차 개질로</button><button data-t="ab">Claus Thermal Reactor</button><button data-t="cfb">화력 보일러</button><button data-t="steelworks">제철소 공정 학습</button><button data-t="ontology">온톨로지 그래프</button><button data-t="maintenance">생산 시퀀스·정비 준비</button></div>
-<div id="p_steelworks" hidden>
-<div class="sub">교육용 통합 화면 · 원료 → 고로 → 전로 → 2차 정련 → 연주 → 가열로 → 압연. 설비를 선택하면 단면·손상 메커니즘·정비 창을 연결해 설명합니다.</div>
-<div class="sw-hero">
- <div><span class="sw-eyebrow">PROCESS → DAMAGE → MAINTENANCE → MILP</span><h2>제철소 공정과 내화물 정비 의사결정</h2><p>생산 흐름 속에서 어느 설비의 어느 부위가 왜 손상되고, 언제 정비할 수 있는지 따라가 보세요.</p></div>
- <div class="sw-legend"><span><i class="sw-dot hot"></i>고온·용융물</span><span><i class="sw-dot refractory"></i>내화물</span><span><i class="sw-dot shell"></i>철피·구조물</span><span><i class="sw-dot wear"></i>손상 예시</span></div>
-</div>
-<div class="sw-panel">
- <div class="sw-panel-head"><h3>1. 제철소 전체 공정 흐름</h3><span>설비를 누르면 아래 단면도가 바뀝니다</span></div>
- <div class="sw-flow" id="sw_flow" role="group" aria-label="제철소 공정 흐름"></div>
- <div class="sw-flow-caption" id="sw_flow_caption">공정 흐름을 선택하세요.</div>
-</div>
-<div class="sw-panel" id="hf_milp_panel">
- <div class="sw-panel-head"><h3>가열로 4대 상태 및 정비 대상 선정</h3><span>14일 정비 · 주간/야간 2교대</span></div>
- <div class="hf-assumption">모델 가정: 1·2호기는 A강종군, 3·4호기는 B강종군을 담당합니다. 강종군 간 대체생산은 불가하며, 정비 중에는 같은 강종군의 다른 1대가 수요를 충족해야 합니다. 수치와 설비 컨디션은 가상 예시입니다.</div>
- <div id="hf_condition_table" class="sw-schedule-table"></div>
- <div class="hf-sequence-head"><b>고정 생산 시퀀스</b><span>28일 × 주간/야간 = 56개 교대 · A/B 강종군별 수요</span></div>
- <div id="hf_shift_sequence" class="hf-shift-sequence"></div>
- <div class="hf-formulation">
-  <div class="hf-formula-head"><b>① 목적함수 (Objective)</b><span>최소화할 비용</span></div>
-  <div class="hf-formula">\(\displaystyle \min Z=\sum_{i=1}^{4}\sum_{s=0}^{28}(C_i+\alpha_i\frac{s}{2}-R_i)x_{i,s}\)</div>
-  <div class="hf-explain-grid">
-   <div><b>정비비용 \(C_i\)</b><small>정비 대상 설비별 14일 정비비</small></div>
-   <div><b>지연비용 \(\alpha_i s/2\)</b><small>정비 시작이 늦어질수록 증가하는 비용</small></div>
-   <div><b>위험회피 편익 \(R_i\)</b><small>정비를 통해 회피한다고 가정한 손실 점수</small></div>
-   <div><b>결정변수 \(x_{i,s}\)</b><small>설비 i를 교대 s부터 정비하면 1, 아니면 0</small></div>
-  </div>
-  <p class="hf-warning"><b>주의:</b> 현재 \(R_i\)는 실제 고장확률 × 고장손실액이 아니라 임의로 입력한 가상 점수입니다. 따라서 현재 목적함수의 최적해는 수학적 최적해이지, 현장 최적 정비판정으로 해석하면 안 됩니다.</p>
-  <div class="hf-formula-head"><b>② 제약조건 (Subject to)</b><span>반드시 만족해야 하는 조건</span></div>
-  <div class="hf-constraint-list">
-   <div><b>(1) 정비 대상 1대 선택</b><div class="hf-equation">\(\sum_{i=1}^{4}\sum_s x_{i,s}=1\)</div><small>28일 계획기간에 정비 시작은 전체 1회만 선택합니다.</small></div>
-   <div><b>(2) A강종군 생산능력</b><div class="hf-equation">\(\sum_{i\in A} Cap_i-\text{정비손실}_{A,t}\geq D_{A,t}\)</div><small>1·2호기만 A강종 수요를 담당합니다.</small></div>
-   <div><b>(3) B강종군 생산능력</b><div class="hf-equation">\(\sum_{i\in B} Cap_i-\text{정비손실}_{B,t}\geq D_{B,t}\)</div><small>3·4호기만 B강종 수요를 담당합니다.</small></div>
-   <div><b>(4) 동시 정비 제한</b><div class="hf-equation">\(\sum_i\sum_{s:\,s\leq t<s+28}x_{i,s}\leq1\)</div><small>같은 교대에 정비로 빠지는 가열로는 최대 1대입니다.</small></div>
-   <div><b>(5) RUL 이내 정비 착수</b><div class="hf-equation">\(x_{i,s}=0\quad\text{if }s/2>RUL_i\)</div><small>설비별 정비 권고 잔여일을 넘겨 시작하는 선택은 금지합니다.</small></div>
-   <div><b>(6) 정비기간 및 변수형</b><div class="hf-equation">\(L=28\text{교대}=14\text{일},\quad x_{i,s}\in\{0,1\}\)</div><small>정비는 연속 28교대이며, 정비 시작 여부는 이진변수입니다.</small></div>
-  </div>
-  <div class="hf-formula-head"><b>③ 변수 정의 및 모델 범위</b></div>
-  <p class="hf-formula">\(i=1,2,3,4:\text{가열로},\quad s=0,\ldots,28:\text{정비 시작 교대},\quad t=0,\ldots,55:\text{운영 교대}\)</p>
-  <p class="sw-small">현재 구현은 생산량 결정변수 \(Q_{i,t}\)를 직접 최적화하지 않습니다. 가열로별 고정 캐파에서 정비로 빠지는 능력을 빼고, 남은 능력이 입력된 수요 이상인지 판정하는 정비 일정 MILP입니다. 생산량 배분·강종별 가열시간·온도조건은 아직 계산하지 않습니다.</p>
- </div>
- <div class="hf-audit">
-  <div class="hf-formula-head"><b>④ 왜 가열로 1호기가 선정됐나? — 현재 입력값으로 재계산</b><span>첫 교대 착수(s=0) 기준</span></div>
-  <div class="hf-formula">\(s=0\Rightarrow Z_i=C_i-R_i\)</div>
-  <div class="sw-schedule-table"><table><thead><tr><th>설비</th><th>정비비용 Cᵢ</th><th>위험회피 Rᵢ</th><th>목적함수 값 Cᵢ−Rᵢ</th></tr></thead><tbody>
-   <tr class="hf-selected-row"><td><b>가열로 1호기</b></td><td>2,200만원</td><td>18,000</td><td><b>−15,800</b></td></tr>
-   <tr><td>가열로 2호기</td><td>2,100만원</td><td>12,000</td><td>−9,900</td></tr>
-   <tr><td>가열로 3호기</td><td>1,950만원</td><td>5,000</td><td>−3,050</td></tr>
-   <tr><td>가열로 4호기</td><td>1,850만원</td><td>1,500</td><td>350</td></tr>
-  </tbody></table></div>
-  <p class="hf-warning"><b>판정:</b> 1호기의 목적함수 값 −15,800이 네 설비 중 가장 작기 때문에 선택됩니다. 생산능력 제약은 네 설비 모두 정비 가능하도록 허용하며, 1호기를 특별히 우대하는 조건은 아닙니다. 현재 1호기 선정은 사실상 가장 큰 가상 위험회피 점수 18,000의 영향입니다.</p>
-  <div class="hf-formula-head"><b>⑤ 생산능력 제약 검산 — 1호기 정비 시</b></div>
-  <div class="hf-capacity-check">
-   <div><b>A강종군</b><div class="hf-equation">3,150 − 1,600 = 1,550t/교대</div><small>고부하 주간 수요 1,450t → 여유 100t</small></div>
-   <div><b>B강종군</b><div class="hf-equation">3,150t/교대</div><small>고부하 주간 수요 1,350t → 여유 1,800t</small></div>
-  </div>
-  <p class="sw-small">위 계산은 코드에 입력된 가상 캐파·수요 기준의 산술 검산입니다. 실제 공장 캐파와 실적 생산 시퀀스를 대체하지 않습니다.</p>
- </div>
- <div class="hf-formulation hf-next-model">
-  <div class="hf-formula-head"><b>⑥ 현장 적용을 위한 개선 목적함수 (권장 구조)</b><span>아직 계산엔 미반영</span></div>
-  <div class="hf-formula">\(\displaystyle \min Z=C_{\text{정비}}+C_{\text{고장위험}}+C_{\text{생산손실}}\)</div>
-  <div class="hf-formula">\(C_{\text{고장위험},i,t}=P(\text{고장}_{i,t})\times L(\text{고장}_{i,t})\)</div>
-  <p class="sw-small">실제 고장확률, 고장 시 생산손실, 정비 후 위험 감소량, 기준조업·고부하별 설비능력을 계측·보정한 뒤에야 현장용 최적 정비안을 계산할 수 있습니다. 이 개선식은 현재 GLPK 계산에 연결된 식이 아니라 다음 버전의 설계안입니다.</p>
- </div>
- <div class="hf-actions"><button class="sw-primary" id="hf_run">가열로 4대 MILP 정비 대상·시점 계산</button><span id="hf_status">계산 전: 가상 컨디션과 생산 시퀀스를 확인하세요.</span></div>
- <div id="hf_result" class="hf-result"></div>
- <div class="hf-gantt-head"><b>28일 생산·정비 간트차트</b><span>각 일자 칸은 주간(D)·야간(N) 2개 교대로 분리됩니다. A/B 강종군별 생산수요·가용능력과 4대 설비 정비 상태를 같은 시간축에 정렬합니다.</span></div>
- <div id="hf_gantt" class="hf-gantt"></div>
- <div class="hf-legend"><span><i class="hf-key prod"></i>생산 가능</span><span><i class="hf-key maint"></i>MILP 정비</span><span><i class="hf-key risk"></i>정비 권고시점 경과</span></div>
- <p class="sw-small">모델 범위: 정비 대상 1대, 정비기간 14일(28교대), 계획기간 28일(56교대). 실제 가열로의 독립 운전 가능 여부, 제품별 배정, 열량·장입량·슬래브 재고, 냉각·가스 프리·비계·건조 승온 및 정비 인력 제약은 현장 데이터로 추가해야 합니다. 이 계산은 교육용 계획 모델이며 작업허가나 안전판정을 대체하지 않습니다.</p>
-</div><div class="sw-detail-grid">
+<div class="tabs" id="tabs"><button data-t="ladle" class="on">래들 (실제 모델)</button><button data-t="kiln">로타리 킬른</button><button data-t="rfcc">RFCC 재생기</button><button data-t="inc">소각로</button><button data-t="inc_melt">용융로형</button><button data-t="inc_grate">화격자형</button><button data-t="rh">가열로</button><button data-t="bf">고로</button><button data-t="sr">2차 개질로</button><button data-t="ab">Claus Thermal Reactor</button><button data-t="cfb">화력 보일러</button><button data-t="ontology">온톨로지 그래프</button><button data-t="hf_milp">가열로 MILP</button><button data-t="maintenance">생산 시퀀스·정비 준비</button></div>
+<div id="p_hf_milp" hidden>
+ <div class="sub">가열로 4대의 생산능력과 A/B 강종군별 생산시퀀스를 연결해 정비 대상과 착수 시점을 MILP로 계산합니다. 기존 내화물 마모·설비 분석·온톨로지·정비 준비 기능은 별도 메뉴로 유지합니다.</div>
  <section class="sw-panel">
-  <div class="sw-panel-head"><h3>2. 선택 설비 단면도</h3><span id="sw_eq_tag">설비 선택</span></div>
-  <div id="sw_section" class="sw-section"></div>
-  <div class="sw-section-legend"><span><i class="sw-swatch shell"></i>철피·외장</span><span><i class="sw-swatch backup"></i>단열·영구층</span><span><i class="sw-swatch hotface"></i>작업층 내화물</span><span><i class="sw-swatch metal"></i>용강·슬래그·열원</span><span><i class="sw-swatch damage"></i>손상 예시</span></div>
-  <p class="sw-small" id="sw_section_note"></p>
+  <div class="sw-panel-head"><h3>1. 생산 시퀀스 입력</h3><span>28일 · 주간/야간 2교대 · 합계 28일</span></div>
+  <p class="note">단계별 A/B 강종군 수요를 입력합니다. 수요는 56개 교대로 전개되어 정비 중 잔여 생산능력 제약에 직접 반영됩니다.</p>
+  <div class="table-wrap"><table><thead><tr><th>단계</th><th>생산 단계명</th><th>일수</th><th>A 주간(t)</th><th>A 야간(t)</th><th>B 주간(t)</th><th>B 야간(t)</th><th>삭제</th></tr></thead><tbody id="sequence_rows"></tbody></table></div>
+  <div class="actions"><button id="add_phase">+ 생산 단계 추가</button><button id="reset_sequence">기본 시퀀스 복원</button><span id="sequence_total" class="note"></span></div>
  </section>
  <section class="sw-panel">
-  <div class="sw-panel-head"><h3>3. 손상 메커니즘</h3><span>운전조건 → 열화 → 결과</span></div>
-  <div id="sw_damage" class="sw-damage"></div>
-  <div class="sw-callout" id="sw_inspection"></div>
+  <div class="sw-panel-head"><h3>2. 가열로별 입력조건</h3><span>초기값은 예시 가정값</span></div>
+  <div class="table-wrap"><table><thead><tr><th>가열로</th><th>강종군</th><th>능력(t/교대)</th><th>RUL(일)</th><th>정비비(만원)</th><th>위험회피 편익(만원)</th><th>지연비용(만원/일)</th></tr></thead><tbody id="furnace_rows"></tbody></table></div>
+  <p class="note">초기 배정은 1·2호기 A강종군, 3·4호기 B강종군입니다. 실제 능력·RUL·비용 자료로 교체해야 합니다.</p>
+  <div class="grid">
+   <div><label for="maintenance_days" class="note">정비기간(일)</label><input id="maintenance_days" type="number" min="1" max="28" value="14"></div>
+   <div><label for="max_down" class="note">동시 정비 허용 대수</label><input id="max_down" type="number" min="1" max="4" value="1"></div>
+  </div>
  </section>
-</div>
-<div class="sw-panel">
- <div class="sw-panel-head"><h3>4. 정비 가능 시점과 제약</h3><span>정비창은 공장·설비·생산계획에 따라 달라집니다</span></div>
- <div id="sw_windows" class="sw-windows"></div>
- <p class="sw-small">중요: 정비 가능 시점은 단순히 설비가 쉬는 시간이 아닙니다. 용강·슬래그 배출, 냉각, 가스 프리, 격리(LOTO), 밀폐공간 허가, 비계·장비 반입, 건조·승온, 품질 확인이 모두 충족되어야 실제 작업창이 됩니다.</p>
+ <section class="sw-panel">
+  <h3>3. MILP 수학적 모델</h3>
+  <div class="formula">결정변수: x(i,s) ∈ {0,1} — 가열로 i를 s번째 교대부터 정비하면 1</div>
+  <div class="formula">목적함수: min Z = Σ(i,s) [ C(i) + α(i)·지연일 − R(i) ] x(i,s)</div>
+  <div class="formula">정비 1건 선택: Σ(i,s) x(i,s) = 1</div>
+  <div class="formula">강종군별 능력: Σ(i∈g) Cap(i) − 정비 중 설비능력 ≥ Demand(g,t)</div>
+  <div class="formula">RUL 제약: 정비 착수일 ≤ RUL(i)</div>
+  <div class="formula">동시 정비: 정비 중인 설비 수 ≤ MaxDown</div>
+  <p class="note">생산 시퀀스 자체는 고정 입력이며, MILP가 최적화하는 것은 정비 대상과 착수 교대입니다. 위험회피 편익은 실측 고장확률×고장손실에 근거한 값이 아니면 가상 점수입니다.</p>
+ </section>
+ <section class="sw-panel">
+  <div class="sw-panel-head"><h3>4. 최적화 실행 및 결과</h3><button class="sw-primary" id="run_milp">MILP 최적 정비 일정 계산</button></div>
+  <div id="solver_status" class="status">생산 시퀀스와 가열로 입력값을 확인한 후 계산하세요.</div>
+  <div id="result_kpis" class="kpis"></div>
+  <div id="result_detail"></div>
+ </section>
+ <section class="sw-panel">
+  <h3>5. 생산·정비 Gantt 및 능력 검산</h3>
+  <div class="legend"><span><i class="sw-key prod"></i>생산 가능</span><span><i class="sw-key maint"></i>정비</span><span><i class="sw-key demand"></i>수요</span></div>
+  <div id="gantt" class="gantt"><div class="note">MILP 계산 후 일정이 표시됩니다.</div></div>
+  <div id="capacity_audit"></div>
+ </section>
+ <p class="note">주의: 이 모델은 계획 의사결정 프로토타입입니다. 설비 안전성, 품질 승인, 정비 작업허가, 제조사 승인 건조·승온 절차를 대체하지 않습니다.</p>
 </div>
 
-<div class="sw-footnote"><b>도면 사용 범위:</b> 이 화면의 설비 단면은 구조와 손상 위치를 이해하기 위한 개념도입니다. 실제 설비 치수·내화물 두께·재질·손상 한계·정비 가능 시간은 각 제철소의 승인 도면, OEM 자료, 검사 실측값 및 작업허가 기준으로 대체해야 합니다.</div>
-</div>
 <div id="p_ladle">
 <div class="sub">SINTEF 공개 코드(refractorywear)를 공개 히트 7654321(래들 12번)을 기준으로, 조건을 바꿔 실제 모델을 다시 돌린 결과(324건)를 보간해요 · 새 라이닝에서 1히트 · 보간 오차 평균 약 5%, 최대 약 11% · 대기시간은 모델의 빈 래들 구간을 바꿔 다시 돌린 결과</div>
 <div class="ctl">
@@ -1082,8 +1051,8 @@ $("onto_info").innerHTML=html;
 $("onto_info").innerHTML="<h3>그래프 읽는 방법</h3><p>화살표 방향은 운전 조건 → 공정 상태 → 손상 메커니즘 → 손상 결과를 나타냅니다. 녹색 점선 화살표는 해당 손상 경로와 연관된 설비 부위를 나타냅니다. 노드를 선택하면 부위 속성과 연결 경로를 확인할 수 있습니다.</p><p><b>주의:</b> 연결은 현재 설비 설명을 구조화한 정성적 지식 관계입니다. 실측으로 검증된 인과관계나 마모량 기여도는 아닙니다.</p>";
 }
 function showTab(k){document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));
-$("p_ladle").hidden=k!=="ladle";$("p_eq").hidden=k==="ladle"||k==="ontology"||k==="maintenance"||k==="steelworks";$("p_ontology").hidden=k!=="ontology";$("p_maintenance").hidden=k!=="maintenance";$("p_steelworks").hidden=k!=="steelworks";
-if(k==="steelworks"){if(window.steelworksLearningRender)window.steelworksLearningRender();return}
+$("p_ladle").hidden=k!=="ladle";$("p_eq").hidden=k==="ladle"||k==="ontology"||k==="maintenance"||k==="hf_milp";$("p_ontology").hidden=k!=="ontology";$("p_maintenance").hidden=k!=="maintenance";$("p_hf_milp").hidden=k!=="hf_milp";
+if(k==="hf_milp")return;
 if(k==="maintenance"){maintenanceRender();return}
 if(k==="ontology"){ontoRender();return}
 if(k==="ladle"){resize();return}
@@ -1317,7 +1286,7 @@ fix:["내화물 전이부와 사이클론 몸통 부분 재시공","앵커(스�
 note:"일반 구성 예시예요. 참고: CFB는 기동·정지 때 열 사이클로 박락이 생기고 미세 분진이 틈에 쌓인다고 알려져 있어요. "+GEN}};
 
 </script>
-<script src="steelworks-learning.js"></script>
+<script src="heating-furnace-milp.js"></script>
 <script src="maintenance-planning.js"></script>
 <script src="milp-maintenance.js"></script>
 <script src="ontology-enhanced.js"></script>
