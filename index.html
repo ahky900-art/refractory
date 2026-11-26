@@ -104,6 +104,18 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 #maint_decision_result strong{font-weight:700}
 @media(max-width:760px){.maint-columns{grid-template-columns:1fr}}
 @media print{#tabs,.maint-actions,.maint-toolbar{display:none!important}.maint-stage{break-inside:avoid}}
+.milp-example{border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0;background:var(--bg)}
+.milp-example-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:9px 0}
+.milp-example-stage{border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--card);min-width:0}
+.milp-example-stage b{display:block;font-size:13px;margin-bottom:5px}
+.milp-example-stage strong{font-size:18px}
+.milp-example-stage small{display:block;color:var(--mut);font-size:11px;margin-top:3px}
+.milp-example-flow{height:8px;border-radius:8px;background:var(--line);overflow:hidden;margin:7px 0}
+.milp-example-flow i{display:block;height:100%;background:#1baf7a;border-radius:8px}
+.milp-example-table{overflow-x:auto}.milp-example-table table{min-width:580px}
+.milp-example-hint{padding:9px 10px;background:var(--card);border-left:3px solid #1baf7a;border-radius:6px;font-size:12px;margin-top:8px}
+@media(max-width:650px){.milp-example-grid{grid-template-columns:1fr}}
+
 
 </style>
 </head>
@@ -289,6 +301,23 @@ N_i=\min\left\{n\geq0:\max_{s,d}W_{i,s,d,m+n}\geq1-r_{\rm crit}\right\}
 <div class="maint-panel" id="milp_panel">
  <h2>생산 시퀀스 연계 MILP 정비 최적화</h2>
  <div class="maint-note">입력한 생산 단계별 부하·운전시간을 기준으로, 각 설비의 잔여 허용 부하가중 운전시간(RUL) 안에서 정비 시점을 배정합니다. 각 단계의 정비 가능시간은 해당 생산 단계 시작 전 확보된 정지창을 뜻합니다. 정비 가능시간과 예산, 정비비, 생산손실 환산비를 만족하는 최소비용 조합을 계산합니다.</div>
+ <div class="milp-example">
+  <b>먼저 예시로 이해하기</b>
+  <div class="maint-note">가상의 3단계 생산계획입니다. 초록 막대는 부하 수준을 나타내며, 정비 가능시간은 각 단계가 시작되기 직전 확보한 정지창입니다.</div>
+  <div class="milp-example-grid">
+   <div class="milp-example-stage"><b>① 기준 조업</b><strong>100%</strong><small>운전 8시간 · 정비창 10시간</small><div class="milp-example-flow"><i style="width:83%"></i></div><small>누적 부하가중 노출: 0시간부터</small></div>
+   <div class="milp-example-stage"><b>② 고부하 생산</b><strong>120%</strong><small>운전 8시간 · 정비창 12시간</small><div class="milp-example-flow"><i style="width:100%"></i></div><small>누적 부하가중 노출: 8시간부터</small></div>
+   <div class="milp-example-stage"><b>③ 원료 전환</b><strong>90%</strong><small>운전 6시간 · 정비창 8시간</small><div class="milp-example-flow"><i style="width:75%"></i></div><small>누적 부하가중 노출: 17.6시간부터</small></div>
+  </div>
+  <div class="milp-example-table"><table><thead><tr><th>정비 대상</th><th>RUL</th><th>정비시간</th><th>정비비</th><th>입력 의미</th></tr></thead><tbody>
+   <tr><td>래들</td><td>10 h</td><td>8 h</td><td>800만원</td><td>10 부하가중 시간 이내 정비 필요</td></tr>
+   <tr><td>로타리 킬른</td><td>16 h</td><td>10 h</td><td>1,200만원</td><td>3단계 시작 전까지 기다리면 한계 초과</td></tr>
+   <tr><td>가열로</td><td>20 h</td><td>6 h</td><td>600만원</td><td>3단계 정비창까지 배정 가능</td></tr>
+  </tbody></table></div>
+  <div class="milp-example-hint"><b>계산 논리:</b> 정비를 늦추면 누적 부하가 RUL을 넘을 수 있습니다. 동시에 한 정비창에서 가능한 총 정비시간은 그 창의 정비 가능시간을 넘을 수 없습니다. 아래 버튼을 누르면 이 숫자가 실제 입력칸에 채워집니다.</div>
+  <div class="maint-actions"><button type="button" id="milp_load_example">예시 값 자동 입력하기</button></div>
+  <div id="milp_example_status" class="maint-note" aria-live="polite">예시를 불러오면 생산 시퀀스와 정비 대상 값이 함께 입력됩니다. 이후 MILP 계산 버튼을 눌러 결과를 확인하세요.</div>
+ </div>
  <div class="maint-seq-table" style="margin-top:10px"><table><thead><tr><th>정비 대상 설비</th><th>잔여 허용 부하가중 운전시간(h)</th><th>정비 소요시간(h)</th><th>정비비용(만원)</th><th>삭제</th></tr></thead><tbody id="milp_job_rows"></tbody></table></div>
  <div class="maint-actions"><button type="button" id="milp_add_job">+ 정비 대상 설비 추가</button></div>
  <div class="maint-toolbar" style="margin-top:10px">
