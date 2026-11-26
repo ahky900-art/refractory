@@ -170,8 +170,8 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
  <div class="hf-sequence-head"><b>고정 생산 시퀀스</b><span>28일 × 주간/야간 = 56개 교대 · A/B 강종군별 수요</span></div>
  <div id="hf_shift_sequence" class="hf-shift-sequence"></div>
  <div class="hf-model-grid">
-  <div class="hf-model-card"><b>목적함수</b><div class="hf-formula">최소화　정비비용 + 정비 지연 위험비용 + 생산 부족 페널티</div><p>Cᵢ는 정비비, αᵢs는 정비 시작 지연비용, Pᵢ는 긴급도 우선순위 반영값입니다. 생산수요 부족은 제약식으로 허용하지 않습니다.</p></div>
-  <div class="hf-model-card"><b>핵심 제약조건</b><div class="hf-formula">min Σᵢₛ(Cᵢ + αᵢs − Pᵢ)xᵢₛ　/　Σᵢₛxᵢₛ=1　/　Qₐ−정비손실ₐₜ≥Dₐₜ, Qᵦ−정비손실ᵦₜ≥Dᵦₜ　/　s/2≤RULᵢ</div><p>xᵢₛ=1이면 가열로 i를 시작 교대 s부터 28교대(14일) 정비합니다. 각 강종군은 자기 담당 가열로 2대의 능력만 합산합니다. 다른 강종군의 여유능력은 대체 생산능력으로 인정하지 않습니다.</p></div>
+  <div class="hf-model-card"><b>목적함수</b><div class="hf-formula">min Σᵢₛ (정비비 Cᵢ + 지연비용 αᵢs − 회피 가능한 고장손실 Pᵢ) xᵢₛ</div><p>고장 위험이 큰 설비를 계획기간 안에 정비할 때 회피하는 예상손실(Pᵢ)을 반영한 교육용 목적함수입니다. Pᵢ는 실제 고장확률·고장 시 생산손실로 산정해야 합니다.</p></div>
+  <div class="hf-model-card"><b>핵심 제약조건</b><div class="hf-formula">Σᵢₛ xᵢₛ = 1　/　A강종군: Qₐ − 정비손실ₐₜ ≥ Dₐₜ　/　B강종군: Qᵦ − 정비손실ᵦₜ ≥ Dᵦₜ　/　정비시작일 ≤ RULᵢ　/　정비기간 = 28교대</div><p>xᵢₛ=1이면 가열로 i를 시작 교대 s부터 28교대(14일) 정비합니다. 1·2호기는 A강종군, 3·4호기는 B강종군 제약식에만 포함됩니다. 각 강종군은 자기 설비 2대의 능력으로만 생산수요를 충족해야 합니다.</p></div>
  </div>
  <div class="hf-actions"><button class="sw-primary" id="hf_run">가열로 4대 MILP 정비 대상·시점 계산</button><span id="hf_status">계산 전: 가상 컨디션과 생산 시퀀스를 확인하세요.</span></div>
  <div id="hf_result" class="hf-result"></div>
