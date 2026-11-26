@@ -144,6 +144,8 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 .hf-day{border:1px solid var(--line);border-radius:7px;padding:6px;background:var(--bg);font-size:10px}.hf-day b{display:block;font-size:11px;margin-bottom:3px}.hf-day span{display:block;color:var(--mut)}.hf-model-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.hf-model-card{border:1px solid var(--line);border-radius:9px;padding:11px;background:var(--bg)}.hf-model-card>b{font-size:12px}.hf-formula{font-size:13px;font-weight:650;margin:8px 0;line-height:1.7}.hf-model-card p{font-size:11px;color:var(--mut);margin:0;line-height:1.6}
 .hf-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}.hf-actions span{font-size:12px;color:var(--mut)}.hf-result{font-size:12px;margin-top:10px;line-height:1.7}.hf-gantt{overflow-x:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px}.hf-gantt-grid{display:grid;grid-template-columns:100px repeat(56,minmax(15px,1fr));min-width:1050px;gap:2px;align-items:stretch}.hf-gantt-label{font-size:11px;font-weight:650;display:flex;align-items:center;padding:3px}.hf-gantt-day{grid-column:span 2;text-align:center;font-size:10px;color:var(--mut);border-bottom:1px solid var(--line);padding:3px}.hf-gantt-shift{font-size:8px;text-align:center;color:var(--mut);padding:2px 0}.hf-gantt-cell{height:24px;border-radius:3px;background:#dce9e2;position:relative}.hf-gantt-cell.maint{background:#d88b3f}.hf-gantt-cell.risk{background:#e9b5b5}.hf-gantt-cell.maint:after{content:"정비";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#38210b;font-weight:700}.hf-key{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}.hf-key.prod{background:#dce9e2}.hf-key.maint{background:#d88b3f}.hf-key.risk{background:#e9b5b5}.hf-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--mut);margin-top:8px}
 @media(max-width:700px){.hf-model-grid{grid-template-columns:1fr}.hf-shift-sequence{grid-template-columns:repeat(4,minmax(0,1fr))}.hf-sequence-head,.hf-gantt-head{display:block}}
+
+.hf-gantt-cell.demand{height:24px;background:#d7e1ef;font-size:8px;text-align:center;color:#34465a;display:flex;align-items:center;justify-content:center}.hf-gantt-cell.capacity{height:24px;background:#dce9e2;font-size:8px;text-align:center;color:#234b3a;display:flex;align-items:center;justify-content:center}
 </style>
 </head>
 <body>
@@ -168,12 +170,12 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
  <div class="hf-sequence-head"><b>고정 생산 시퀀스</b><span>28일 × 주간/야간 = 56개 교대</span></div>
  <div id="hf_shift_sequence" class="hf-shift-sequence"></div>
  <div class="hf-model-grid">
-  <div class="hf-model-card"><b>목적함수</b><div class="hf-formula">최소화　정비비용 + 정비 지연 위험비용 + 생산 부족 페널티</div><p>정비를 미루면 위험도가 높은 가열로의 잔여수명 초과 위험비용이 커집니다. 생산능력 부족은 제약식으로 막습니다.</p></div>
-  <div class="hf-model-card"><b>핵심 제약조건</b><div class="hf-formula">Σᵢₛ xᵢₛ = 1　/　14일 연속 정비　/　교대별 공급능력 ≥ 수요　/　정비 시작 ≤ RUL</div><p>xᵢₛ=1이면 가열로 i를 시작 교대 s부터 28교대(14일) 정비합니다. 나머지는 0입니다.</p></div>
+  <div class="hf-model-card"><b>목적함수</b><div class="hf-formula">최소화　정비비용 + 정비 지연 위험비용 + 생산 부족 페널티</div><p>Cᵢ는 정비비, αᵢs는 정비 시작 지연비용, Pᵢ는 긴급도 우선순위 반영값입니다. 생산수요 부족은 제약식으로 허용하지 않습니다.</p></div>
+  <div class="hf-model-card"><b>핵심 제약조건</b><div class="hf-formula">min Σᵢₛ(Cᵢ + αᵢs − Pᵢ)xᵢₛ　/　Σᵢₛxᵢₛ=1　/　Σᵢ,ₛ∈Aₜqᵢxᵢₛ ≤ Σᵢqᵢ−Dₜ　/　s/2 ≤ RULᵢ</div><p>xᵢₛ=1이면 가열로 i를 시작 교대 s부터 28교대(14일) 정비합니다. Aₜ는 교대 t에 정비 중인 시작시점 집합, qᵢ는 가열로 생산능력, Dₜ는 해당 교대 생산수요입니다.</p></div>
  </div>
  <div class="hf-actions"><button class="sw-primary" id="hf_run">가열로 4대 MILP 정비 대상·시점 계산</button><span id="hf_status">계산 전: 가상 컨디션과 생산 시퀀스를 확인하세요.</span></div>
  <div id="hf_result" class="hf-result"></div>
- <div class="hf-gantt-head"><b>28일 생산·정비 간트차트</b><span>각 일자 칸은 주간(D)·야간(N) 2개 교대로 분리됩니다.</span></div>
+ <div class="hf-gantt-head"><b>28일 생산·정비 간트차트</b><span>각 일자 칸은 주간(D)·야간(N) 2개 교대로 분리됩니다. 생산수요·가용능력·4대 설비 정비 상태를 같은 시간축에 정렬합니다.</span></div>
  <div id="hf_gantt" class="hf-gantt"></div>
  <div class="hf-legend"><span><i class="hf-key prod"></i>생산 가능</span><span><i class="hf-key maint"></i>MILP 정비</span><span><i class="hf-key risk"></i>정비 권고시점 경과</span></div>
  <p class="sw-small">모델 범위: 정비 대상 1대, 정비기간 14일(28교대), 계획기간 28일(56교대). 실제 가열로의 독립 운전 가능 여부, 제품별 배정, 열량·장입량·슬래브 재고, 냉각·가스 프리·비계·건조 승온 및 정비 인력 제약은 현장 데이터로 추가해야 합니다. 이 계산은 교육용 계획 모델이며 작업허가나 안전판정을 대체하지 않습니다.</p>
