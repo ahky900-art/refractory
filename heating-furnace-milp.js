@@ -1,121 +1,174 @@
-/* 14-day / two-shift reheating-furnace MILP.
-   Two product-grade families; furnaces 1-2 serve A, 3-4 serve B.
-   All numbers are illustrative placeholders, not plant operating data. */
+/* Integrated reheating-furnace production-sequence and maintenance MILP.
+ * Illustrative data only. One furnace is selected for a continuous maintenance outage.
+ */
 (() => {
  const $=id=>document.getElementById(id);
+ const SHIFTS=56;
  let glpkPromise=null;
- const DAYS=28, SHIFTS=56, DURATION=28;
- const furnaces=[
-  {name:"가열로 1호",grade:"A강종군",thickness:68,shell:315,condition:"긴급",rul:4,cost:2200,risk:18000,delay:220,capacity:1600},
-  {name:"가열로 2호",grade:"A강종군",thickness:78,shell:285,condition:"주의",rul:10,cost:2100,risk:12000,delay:180,capacity:1550},
-  {name:"가열로 3호",grade:"B강종군",thickness:92,shell:250,condition:"관찰",rul:24,cost:1950,risk:5000,delay:100,capacity:1600},
-  {name:"가열로 4호",grade:"B강종군",thickness:105,shell:225,condition:"양호",rul:35,cost:1850,risk:1500,delay:60,capacity:1550}
+ const defaults=()=>[
+  {name:"기준 생산",days:7,aDay:1250,aNight:1170,bDay:1150,bNight:1070},
+  {name:"고부하 생산",days:7,aDay:1450,aNight:1370,bDay:1350,bNight:1270},
+  {name:"강종 전환",days:7,aDay:1200,aNight:1120,bDay:1100,bNight:1020},
+  {name:"생산 회복",days:7,aDay:1320,aNight:1240,bDay:1220,bNight:1140}
  ];
- const gradeGroups=[{id:"A",label:"A강종군",indices:[0,1]},{id:"B",label:"B강종군",indices:[2,3]}];
- function sequence(t){
-  const day=Math.floor(t/2)+1,shift=t%2===0?"주간":"야간";
-  let segment,condition,loadA,loadB;
-  if(day<=7){segment="기준 생산";condition="기준 강종·안정 조업";loadA=1250;loadB=1150;}
-  else if(day<=14){segment="고부하 생산";condition="생산량 상향·가열부하 증가";loadA=1450;loadB=1350;}
-  else if(day<=21){segment="강종 전환";condition="A/B 강종군 내 제품 규격 전환";loadA=1200;loadB=1100;}
-  else {segment="생산 회복";condition="정상 생산량 복귀";loadA=1320;loadB=1220;}
-  if(shift==="야간"){loadA-=80;loadB-=80;}
-  return {day,shift,segment,condition,demandA:loadA,demandB:loadB};
- }
- const seq=Array.from({length:SHIFTS},(_,t)=>sequence(t));
+ const furnaces=[
+  {name:"가열로 1호",grade:"A",capacity:1600,rul:4,cost:2200,risk:18000,delay:220},
+  {name:"가열로 2호",grade:"A",capacity:1550,rul:10,cost:2100,risk:12000,delay:180},
+  {name:"가열로 3호",grade:"B",capacity:1600,rul:24,cost:1950,risk:5000,delay:100},
+  {name:"가열로 4호",grade:"B",capacity:1550,rul:28,cost:1850,risk:1500,delay:60}
+ ];
+ let phases=defaults(),lastResult=null;
  const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
- async function glpk(){
+ const num=v=>Number(v);
+ async function loadGlpk(){
   if(!glpkPromise)glpkPromise=import("https://cdn.jsdelivr.net/npm/glpk.js@4.0.2/+esm").then(m=>(m.default||m.GLPK)()).catch(e=>{glpkPromise=null;throw e;});
   return glpkPromise;
  }
- function groupCapacity(group){return group.indices.reduce((a,i)=>a+furnaces[i].capacity,0);}
- function renderInputs(){
-  $("hf_condition_table").innerHTML='<table><thead><tr><th>가열로</th><th>담당 강종군</th><th>내화물 잔여두께</th><th>쉘 온도</th><th>컨디션</th><th>정비 권고까지 RUL</th><th>14일 정비비</th><th>능력/교대</th></tr></thead><tbody>'+
-   furnaces.map((f,i)=>'<tr><td><b>'+f.name+'</b></td><td>'+f.grade+'</td><td>'+f.thickness+' mm</td><td>'+f.shell+' °C</td><td><span class="sw-condition-pill '+(i===0?"critical":i===1?"":"ok")+'">'+f.condition+'</span></td><td>'+f.rul+'일</td><td>'+f.cost.toLocaleString("ko-KR")+'만원</td><td>'+f.capacity.toLocaleString("ko-KR")+' t</td></tr>').join("")+
-   '</tbody></table><p class="sw-small">A강종군은 1·2호기, B강종군은 3·4호기가 담당합니다. 강종군 사이에는 생산능력 대체를 허용하지 않습니다.</p>';
-  $("hf_shift_sequence").innerHTML=Array.from({length:DAYS},(_,d)=>{
-   const a=seq[d*2],b=seq[d*2+1];
-   return '<div class="hf-day"><b>Day '+(d+1)+'</b><span>A D/N '+a.demandA+'/'+b.demandA+'t</span><span>B D/N '+a.demandB+'/'+b.demandB+'t</span><span>'+a.segment+'</span></div>';
-  }).join("");
+ function renderPhases(){
+  $("sequence_rows").innerHTML=phases.map((p,i)=>'<tr><td>'+(i+1)+'</td>'+
+   '<td><input data-phase="'+i+'" data-key="name" value="'+esc(p.name)+'"></td>'+
+   '<td><input type="number" min="1" max="28" data-phase="'+i+'" data-key="days" value="'+p.days+'"></td>'+
+   '<td><input type="number" min="0" data-phase="'+i+'" data-key="aDay" value="'+p.aDay+'"></td>'+
+   '<td><input type="number" min="0" data-phase="'+i+'" data-key="aNight" value="'+p.aNight+'"></td>'+
+   '<td><input type="number" min="0" data-phase="'+i+'" data-key="bDay" value="'+p.bDay+'"></td>'+
+   '<td><input type="number" min="0" data-phase="'+i+'" data-key="bNight" value="'+p.bNight+'"></td>'+
+   '<td><button data-remove-phase="'+i+'">삭제</button></td></tr>').join("");
+  $("sequence_rows").querySelectorAll("[data-phase]").forEach(el=>el.addEventListener("change",e=>{
+   const p=phases[Number(e.target.dataset.phase)],k=e.target.dataset.key;
+   p[k]=k==="name"?e.target.value:num(e.target.value);lastResult=null;renderTotals();
+  }));
+  $("sequence_rows").querySelectorAll("[data-remove-phase]").forEach(el=>el.addEventListener("click",e=>{
+   if(phases.length<=1)return;phases.splice(Number(e.currentTarget.dataset.removePhase),1);lastResult=null;renderPhases();
+  }));
+  renderTotals();
  }
- function drawGantt(chosen){
-  const el=$("hf_gantt");if(!el)return;
-  const totalA=groupCapacity(gradeGroups[0]),totalB=groupCapacity(gradeGroups[1]);
-  let html='<div class="hf-gantt-grid"><div class="hf-gantt-label">구분 / 날짜</div>';
-  for(let d=1;d<=DAYS;d++)html+='<div class="hf-gantt-day">D'+d+'</div>';
-  html+='<div class="hf-gantt-label"></div>';
-  for(let t=0;t<SHIFTS;t++)html+='<div class="hf-gantt-shift">'+(t%2===0?"주":"야")+'</div>';
-  const addRow=(label,values,kind)=>{html+='<div class="hf-gantt-label">'+label+'</div>';for(let t=0;t<SHIFTS;t++)html+='<div class="hf-gantt-cell '+kind+'" title="'+label+' · '+values[t]+'t">'+(values[t]/1000).toFixed(2)+'</div>';};
-  addRow("A강종 수요",seq.map(p=>p.demandA),"demand");
-  addRow("A강종 가용능력",seq.map((p,t)=>totalA-(chosen&&chosen.i<2&&t>=chosen.start&&t<chosen.start+DURATION?furnaces[chosen.i].capacity:0)),"capacity");
-  addRow("B강종 수요",seq.map(p=>p.demandB),"demand");
-  addRow("B강종 가용능력",seq.map((p,t)=>totalB-(chosen&&chosen.i>=2&&t>=chosen.start&&t<chosen.start+DURATION?furnaces[chosen.i].capacity:0)),"capacity");
-  for(let i=0;i<furnaces.length;i++){
-   html+='<div class="hf-gantt-label">'+furnaces[i].name+'<small>'+furnaces[i].grade+'</small></div>';
-   for(let t=0;t<SHIFTS;t++){
-    const active=chosen&&chosen.i===i&&t>=chosen.start&&t<chosen.start+DURATION;
-    html+='<div class="hf-gantt-cell '+(active?"maint":"prod")+'" title="'+furnaces[i].name+' · '+(active?"14일 정비":"생산 가능")+'"></div>';
+ function renderTotals(){
+  const days=phases.reduce((a,p)=>a+(num(p.days)||0),0);
+  $("sequence_total").textContent="입력 기간 합계: "+days+" / 28일"+(days===28?" · 계획기간 충족":" · 28일과 일치시켜야 계산 가능");
+  $("sequence_total").style.color=days===28?"#28764a":"#a45b18";
+ }
+ function renderFurnaces(){
+  $("furnace_rows").innerHTML=furnaces.map((f,i)=>'<tr><td><b>'+f.name+'</b></td><td><select data-furnace="'+i+'" data-key="grade"><option value="A" '+(f.grade==="A"?"selected":"")+'>A강종군</option><option value="B" '+(f.grade==="B"?"selected":"")+'>B강종군</option></select></td>'+
+   ['capacity','rul','cost','risk','delay'].map((k)=>'<td><input type="number" min="0" step="1" data-furnace="'+i+'" data-key="'+k+'" value="'+f[k]+'"></td>').join("")+'</tr>').join("");
+  $("furnace_rows").querySelectorAll("[data-furnace]").forEach(el=>el.addEventListener("change",e=>{
+   const f=furnaces[Number(e.target.dataset.furnace)],k=e.target.dataset.key;f[k]=k==="grade"?e.target.value:num(e.target.value);lastResult=null;
+  }));
+ }
+ function expandSequence(){
+  const days=phases.reduce((a,p)=>a+num(p.days),0);
+  if(days!==28)throw new Error("생산 단계 일수 합계가 "+days+"일입니다. 정확히 28일로 입력하세요.");
+  const seq=[];
+  phases.forEach(p=>{
+   for(let d=0;d<num(p.days);d++){
+    seq.push({phase:p.name,shift:"주간",a:num(p.aDay),b:num(p.bDay)});
+    seq.push({phase:p.name,shift:"야간",a:num(p.aNight),b:num(p.bNight)});
    }
-  }
-  el.innerHTML=html+'</div>';
+  });
+  if(seq.length!==SHIFTS)throw new Error("생산 시퀀스가 56개 교대로 전개되지 않았습니다.");
+  seq.forEach((p,i)=>{
+   if(!Number.isFinite(p.a)||!Number.isFinite(p.b)||p.a<0||p.b<0)throw new Error((Math.floor(i/2)+1)+"일차 수요를 확인하세요.");
+  });
+  return seq;
  }
+ function addTerm(list,name,coef){if(Math.abs(coef)>1e-10)list.push({name,coef});}
  async function solve(){
-  const status=$("hf_status"),resultEl=$("hf_result");
-  status.textContent="GLPK.js 최적화 엔진 불러오는 중...";
-  resultEl.textContent="";
-  const g=await glpk(),vars=[],objective=[],constraints=[],bounds=[];
+  const status=$("solver_status"),detail=$("result_detail");
+  $("result_kpis").innerHTML="";detail.innerHTML="";$("capacity_audit").innerHTML="";
+  status.className="status";status.textContent="입력값 검증 및 GLPK.js 엔진 준비 중...";
+  const seq=expandSequence(),durationDays=num($("maintenance_days").value),duration=durationDays*2,maxDown=num($("max_down").value);
+  if(!Number.isInteger(durationDays)||durationDays<1||durationDays>28)throw new Error("정비기간은 1~28일 정수로 입력하세요.");
+  if(!Number.isInteger(maxDown)||maxDown<1||maxDown>4)throw new Error("동시 정비 허용 대수는 1~4대로 입력하세요.");
+  furnaces.forEach(f=>{
+   ["capacity","rul","cost","risk","delay"].forEach(k=>{if(!Number.isFinite(num(f[k]))||num(f[k])<0)throw new Error(f.name+"의 "+k+" 입력값을 확인하세요.");});
+  });
+  const g=await loadGlpk(),vars=[],objective=[],subjectTo=[],bounds=[];
   const x=(i,s)=>"x_"+i+"_"+s;
+  const maxStart=SHIFTS-duration;
   for(let i=0;i<furnaces.length;i++){
-   const starts=[];
-   for(let s=0;s<=SHIFTS-DURATION;s++){
-    const name=x(i,s),f=furnaces[i];vars.push(name);starts.push({name,coef:1});
-    // Avoidable failure-loss benefit is subtracted because exactly one asset is selected.
-    objective.push({name,coef:f.cost+f.delay*(s/2)-f.risk});
-    if(Math.floor(s/2)+1>f.rul)bounds.push({name,type:g.GLP_FX,lb:0,ub:0});
+   const f=furnaces[i],starts=[];
+   for(let s=0;s<=maxStart;s++){
+    const name=x(i,s),startDay=Math.floor(s/2)+1;
+    vars.push(name);starts.push({name,coef:1});
+    const delayedCost=f.cost+f.delay*(startDay-1)-f.risk;
+    objective.push({name,coef:delayedCost});
+    if(startDay>f.rul)bounds.push({name,type:g.GLP_FX,lb:0,ub:0});
    }
-   constraints.push({name:"one_start_"+i,vars:starts,bnds:{type:g.GLP_UP,lb:0,ub:1}});
+   subjectTo.push({name:"at_most_one_start_"+i,vars:starts,bnds:{type:g.GLP_UP,lb:0,ub:1}});
   }
-  const all=[];for(let i=0;i<furnaces.length;i++)for(let s=0;s<=SHIFTS-DURATION;s++)all.push({name:x(i,s),coef:1});
-  constraints.push({name:"select_exactly_one",vars:all,bnds:{type:g.GLP_FX,lb:1,ub:1}});
-  // Separate product-grade capacity constraints. A and B cannot substitute for one another.
-  for(let t=0;t<SHIFTS;t++)for(const group of gradeGroups){
-   const outage=[];
-   for(const i of group.indices)for(let s=Math.max(0,t-DURATION+1);s<=Math.min(t,SHIFTS-DURATION);s++)outage.push({name:x(i,s),coef:furnaces[i].capacity});
-   const demand=group.id==="A"?seq[t].demandA:seq[t].demandB;
-   constraints.push({name:"grade_"+group.id+"_capacity_"+t,vars:outage,bnds:{type:g.GLP_UP,lb:0,ub:groupCapacity(group)-demand}});
-  }
-  // No more than one furnace may be down in any shift.
+  const choose=[];for(let i=0;i<furnaces.length;i++)for(let s=0;s<=maxStart;s++)choose.push({name:x(i,s),coef:1});
+  subjectTo.push({name:"select_exactly_one_furnace",vars:choose,bnds:{type:g.GLP_FX,lb:1,ub:1}});
   for(let t=0;t<SHIFTS;t++){
-   const active=[];
-   for(let i=0;i<furnaces.length;i++)for(let s=Math.max(0,t-DURATION+1);s<=Math.min(t,SHIFTS-DURATION);s++)active.push({name:x(i,s),coef:1});
-   constraints.push({name:"max_one_furnace_down_"+t,vars:active,bnds:{type:g.GLP_UP,lb:0,ub:1}});
+   for(const grade of ["A","B"]){
+    const active=[];
+    for(let i=0;i<furnaces.length;i++)if(furnaces[i].grade===grade){
+     for(let s=Math.max(0,t-duration+1);s<=Math.min(t,maxStart);s++)addTerm(active,x(i,s),furnaces[i].capacity);
+    }
+    const total=furnaces.filter(f=>f.grade===grade).reduce((a,f)=>a+f.capacity,0);
+    const demand=grade==="A"?seq[t].a:seq[t].b;
+    subjectTo.push({name:"capacity_"+grade+"_"+t,vars:active,bnds:{type:g.GLP_UP,lb:0,ub:total-demand}});
+   }
+   const down=[];
+   for(let i=0;i<furnaces.length;i++)for(let s=Math.max(0,t-duration+1);s<=Math.min(t,maxStart);s++)addTerm(down,x(i,s),1);
+   subjectTo.push({name:"max_down_"+t,vars:down,bnds:{type:g.GLP_UP,lb:0,ub:maxDown}});
   }
-  const lp={name:"TwoGradeReheatingFurnace14DayMILP",objective:{direction:g.GLP_MIN,name:"maintenance_cost_and_risk",vars:objective},subjectTo:constraints,binaries:vars,bounds};
-  const solved=await g.solve(lp,{msglev:g.GLP_MSG_OFF,presol:true});
-  if(solved.status!==g.GLP_OPT&&solved.status!==g.GLP_FEAS){
-   status.textContent="실행 가능한 정비계획이 없습니다.";
-   resultEl.textContent="강종군별 수요, 각 군의 가용능력, RUL 및 14일 정비기간을 확인하세요.";
-   drawGantt(null);return;
+  const lp={name:"IntegratedReheatingFurnaceMILP",objective:{direction:g.GLP_MIN,name:"maintenance_cost_delay_risk",vars:objective},subjectTo,binaries:vars,bounds};
+  status.textContent="MILP 최적화 계산 중...";
+  const result=await g.solve(lp,{msglev:g.GLP_MSG_OFF,presol:true});
+  if(result.status!==g.GLP_OPT&&result.status!==g.GLP_FEAS){
+   status.className="status error";status.textContent="실행 가능한 일정이 없습니다. RUL, 강종군별 수요, 설비 능력 및 정비기간을 확인하세요.";drawGantt(seq,null,duration);return;
   }
   let picked=null;
-  for(let i=0;i<furnaces.length;i++)for(let s=0;s<=SHIFTS-DURATION;s++)if((solved.vars[x(i,s)]||0)>.5)picked={i,start:s};
-  if(!picked)throw new Error("MILP 결과에서 정비 대상과 시작 교대를 찾지 못했습니다.");
+  for(let i=0;i<furnaces.length;i++)for(let s=0;s<=maxStart;s++)if((result.vars[x(i,s)]||0)>.5)picked={i,start:s};
+  if(!picked)throw new Error("솔버 결과에서 정비 대상을 찾지 못했습니다.");
   const f=furnaces[picked.i],startDay=Math.floor(picked.start/2)+1,startShift=picked.start%2===0?"주간":"야간";
-  const endShift=picked.start+DURATION-1,endDay=Math.floor(endShift/2)+1,endName=endShift%2===0?"주간":"야간";
-  const minA=Math.min(...seq.map((p,t)=>groupCapacity(gradeGroups[0])-(picked.i<2&&t>=picked.start&&t<picked.start+DURATION?f.capacity:0)));
-  const minB=Math.min(...seq.map((p,t)=>groupCapacity(gradeGroups[1])-(picked.i>=2&&t>=picked.start&&t<picked.start+DURATION?f.capacity:0)));
-  const ok=seq.every((p,t)=>(groupCapacity(gradeGroups[0])-(picked.i<2&&t>=picked.start&&t<picked.start+DURATION?f.capacity:0))>=p.demandA&&(groupCapacity(gradeGroups[1])-(picked.i>=2&&t>=picked.start&&t<picked.start+DURATION?f.capacity:0))>=p.demandB);
-  const label=solved.status===g.GLP_OPT?"최적해":"실행 가능한 해";
-  status.textContent=label+" · "+f.name+"("+f.grade+") 선정 · 14일 연속 정비";
-  resultEl.innerHTML='<div class="hf-result-card"><b>MILP 선정: '+f.name+' · '+f.grade+'</b><span>정비 시작: '+startDay+'일차 '+startShift+' 교대</span><span>정비 종료: '+endDay+'일차 '+endName+' 교대</span><span>정비기간: 14일 / 28교대</span><span>예시 정비비: '+f.cost.toLocaleString("ko-KR")+'만원</span><span>A강종군 최소 가용능력: '+minA+' t/교대</span><span>B강종군 최소 가용능력: '+minB+' t/교대</span><span>강종군별 교대 수요 충족: '+(ok?"모든 교대 충족":"수요 미충족")+'</span></div><p>선정된 '+f.name+'은 '+f.grade+' 전용 설비로 처리했습니다. 정비 중에는 같은 강종군의 다른 가열로만 해당 강종 생산을 담당합니다. 다른 강종군 가열로의 여유능력으로 대체하는 것은 허용하지 않았습니다.</p><p class="sw-small">위험회피 편익(Pᵢ)은 교육용 가상 손실비용입니다. 실제 고장확률·생산손실·정비비로 교정해야 합니다.</p>';
-  drawGantt(picked);
-  window.heatingFurnaceMILPResult={furnace:f.name,grade:f.grade,startShift:picked.start,startDay,durationShifts:DURATION,solverStatus:label,gradeDemandSatisfied:ok};
-  window.dispatchEvent(new CustomEvent("heating-furnace-milp-result",{detail:window.heatingFurnaceMILPResult}));
+  const endShift=picked.start+duration-1,endDay=Math.floor(endShift/2)+1,endName=endShift%2===0?"주간":"야간";
+  const checks=["A","B"].map(grade=>{
+   const vals=seq.map((p,t)=>{
+    const cap=furnaces.filter(z=>z.grade===grade).reduce((a,z)=>a+z.capacity,0)-(f.grade===grade&&t>=picked.start&&t<picked.start+duration?f.capacity:0);
+    return {t,cap,demand:grade==="A"?p.a:p.b,slack:cap-(grade==="A"?p.a:p.b)};
+   });
+   return {grade,minSlack:Math.min(...vals.map(v=>v.slack)),ok:vals.every(v=>v.slack>=-1e-8),vals};
+  });
+  const objectiveValue=Number(result.z),label=result.status===g.GLP_OPT?"최적해":"실행 가능한 해(최적성 미확인)";
+  const chosenCost=f.cost+f.delay*(startDay-1)-f.risk;
+  status.className="status ok";status.textContent=label+" · "+f.name+" · "+startDay+"일차 "+startShift+" 착수 · "+durationDays+"일 연속 정비";
+  $("result_kpis").innerHTML='<div class="kpi"><span>선정 가열로</span><b>'+f.name+'</b><span>'+f.grade+'강종군</span></div><div class="kpi"><span>정비 착수</span><b>'+startDay+'일차 '+startShift+'</b><span>종료 '+endDay+'일차 '+endName+'</span></div><div class="kpi"><span>목적함수 최솟값</span><b>'+objectiveValue.toLocaleString("ko-KR",{maximumFractionDigits:1})+'</b><span>만원 환산</span></div><div class="kpi"><span>정비기간</span><b>'+durationDays+'일</b><span>'+duration+'개 교대</span></div>';
+  detail.innerHTML='<h3>선정 근거</h3><div class="formula">'+f.name+' : C('+f.cost+') + α('+f.delay+') × 지연일('+(startDay-1)+') − R('+f.risk+') = '+chosenCost.toLocaleString("ko-KR")+' 만원 환산</div><p class="note">각 가열로의 가능한 착수 교대 중 목적함수와 모든 생산능력·RUL 제약을 만족하는 조합을 비교해 최소값을 선택했습니다. RUL은 정비 착수일 기준 하드 제약입니다.</p>'+
+   '<div class="table-wrap result-table"><table><thead><tr><th>강종군</th><th>계획기간 최소 여유능력</th><th>수요 충족</th></tr></thead><tbody>'+checks.map(c=>'<tr><td>'+c.grade+'강종군</td><td>'+c.minSlack.toLocaleString("ko-KR")+' t/교대</td><td>'+(c.ok?"충족":"미충족")+'</td></tr>').join("")+'</tbody></table></div>'+
+   '<p class="note">선정 설비: '+f.name+' · RUL '+f.rul+'일 · 정비비 '+f.cost+'만원 · 위험회피 편익 '+f.risk+'만원 환산 · 지연비용 '+f.delay+'만원/일.</p>';
+  $("capacity_audit").innerHTML=checks.map(c=>{
+   const min=c.vals.reduce((a,v)=>v.slack<a.slack?v:a,c.vals[0]);
+   return '<p class="note"><b>'+c.grade+'강종군 최저 여유 교대:</b> '+(Math.floor(min.t/2)+1)+'일차 '+(min.t%2===0?"주간":"야간")+' · 가용능력 '+min.cap.toLocaleString("ko-KR")+'t − 수요 '+min.demand.toLocaleString("ko-KR")+'t = 여유 '+min.slack.toLocaleString("ko-KR")+'t</p>';
+  }).join("");
+  lastResult={picked,seq,duration,label,objectiveValue};drawGantt(seq,picked,duration);
+  window.heatingFurnaceMILPResult={furnace:f.name,grade:f.grade,startShift:picked.start,startDay,durationShifts:duration,solverStatus:label,objectiveValue,capacitySatisfied:checks.every(c=>c.ok)};
  }
- function init(){
-  if(!$("hf_run"))return;
-  renderInputs();drawGantt(null);
-  $("hf_run").addEventListener("click",()=>solve().catch(e=>{$("hf_status").textContent="MILP 계산 오류";$("hf_result").textContent=e.message||String(e);}));
+ function drawGantt(seq,picked,duration){
+  if(!seq)seq=expandSequence();
+  let h='<div class="gantt-grid"><div class="glabel">날짜 / 교대</div>';
+  for(let d=1;d<=28;d++)h+='<div class="gday">D'+d+'</div>';
+  h+='<div class="glabel"></div>';for(let t=0;t<SHIFTS;t++)h+='<div class="gshift">'+(t%2===0?"주":"야")+'</div>';
+  ["A","B"].forEach(grade=>{
+   h+='<div class="glabel">'+grade+' 수요</div>';
+   for(let t=0;t<SHIFTS;t++){const d=grade==="A"?seq[t].a:seq[t].b;h+='<div class="cell demand" title="'+grade+' '+d+'t">'+(d/1000).toFixed(2)+'</div>';}
+   const cap=furnaces.filter(f=>f.grade===grade).reduce((a,f)=>a+f.capacity,0);
+   h+='<div class="glabel">'+grade+' 가용능력</div>';
+   for(let t=0;t<SHIFTS;t++){
+    let down=0;if(picked&&furnaces[picked.i].grade===grade&&t>=picked.start&&t<picked.start+duration)down=furnaces[picked.i].capacity;
+    h+='<div class="cell capacity" title="'+grade+' 가용능력 '+(cap-down)+'t">'+((cap-down)/1000).toFixed(2)+'</div>';
+   }
+  });
+  furnaces.forEach((f,i)=>{
+   h+='<div class="glabel">'+f.name+'</div>';
+   for(let t=0;t<SHIFTS;t++){
+    const active=picked&&picked.i===i&&t>=picked.start&&t<picked.start+duration;
+    h+='<div class="cell '+(active?"maint":"")+'" title="'+f.name+' '+(active?"정비":"생산 가능")+'"></div>';
+   }
+  });
+  $("gantt").innerHTML=h+'</div>';
  }
- if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+ $("add_phase").addEventListener("click",()=>{phases.push({name:"신규 생산 단계",days:1,aDay:1200,aNight:1100,bDay:1100,bNight:1000});lastResult=null;renderPhases();});
+ $("reset_sequence").addEventListener("click",()=>{phases=defaults();lastResult=null;renderPhases();});
+ $("run_milp").addEventListener("click",()=>solve().catch(e=>{$("solver_status").className="status error";$("solver_status").textContent="계산 오류: "+(e.message||String(e));}));
+ renderPhases();renderFurnaces();
 })();
