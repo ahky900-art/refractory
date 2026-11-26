@@ -132,6 +132,8 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 .sw-windows{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.sw-window{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:10px}.sw-window b{display:block;font-size:12px}.sw-window p{font-size:11px;color:var(--mut);margin:5px 0 0}
 .sw-milp-flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;gap:8px;align-items:center}.sw-milp-flow>div{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px}.sw-milp-flow b,.sw-milp-flow small{display:block}.sw-milp-flow b{font-size:12px}.sw-milp-flow small{font-size:10px;color:var(--mut);margin-top:4px}.sw-milp-flow>i{font-style:normal;color:var(--mut)}.sw-equation{background:var(--bg);border-radius:8px;padding:12px;margin:10px 0;font-size:13px;overflow-x:auto;white-space:nowrap}.sw-primary{border:0;border-radius:8px;padding:10px 14px;background:#263f50;color:#fff;font-weight:600;cursor:pointer;margin-top:10px}.sw-footnote{padding:10px 2px;font-size:11px;color:var(--mut);line-height:1.6}
 @media(max-width:760px){.sw-detail-grid{grid-template-columns:1fr}.sw-hero{display:block}.sw-legend{margin-top:14px}.sw-windows{grid-template-columns:1fr}.sw-milp-flow{grid-template-columns:1fr}.sw-milp-flow>i{transform:rotate(90deg);justify-self:center}}
+
+.sw-schedule-status{font-size:12px;color:var(--mut);margin:4px 0 9px}.sw-schedule-table{overflow-x:auto}.sw-schedule-table table{width:100%;min-width:720px;border-collapse:collapse;font-size:12px}.sw-schedule-table th,.sw-schedule-table td{padding:8px 7px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}.sw-schedule-table th{color:var(--mut);font-weight:600}.sw-schedule-table tr.sw-has-job{background:rgba(195,132,61,.08)}.sw-timebar{display:flex;align-items:center;gap:5px;min-width:180px}.sw-bar{display:inline-block;height:10px;border-radius:4px;vertical-align:middle}.sw-bar.production{width:22px;background:#6c9d89}.sw-bar.maintenance{width:22px;background:#d58a3f}.sw-bar.noassign{width:22px;background:#aab1b8}.sw-timebar .sw-bar{height:13px}.sw-schedule-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--mut);margin-top:9px}.sw-schedule-legend .sw-bar{margin-right:4px}
 </style>
 </head>
 <body>
@@ -174,7 +176,13 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
  <p class="sw-small">현재 대시보드 MILP는 생산 순서를 고정하고, 각 설비를 한 개의 정비창에 한 번 배정하는 프로토타입입니다. 실제 제철소의 동시작업 인력, 설비 간 선후행, 정비 후 수명 회복, 냉각·가스 프리, 안전 승인 등은 아직 모두 제약식에 들어가 있지 않습니다.</p>
  <button type="button" class="sw-primary" id="sw_go_milp">생산 시퀀스·정비 준비 및 MILP 계산으로 이동</button>
 </div>
-<div class="sw-footnote"><b>도면 사용 범위:</b> 이 화면의 설비 단면은 구조와 손상 위치를 이해하기 위한 개념도입니다. 실제 설비 치수·내화물 두께·재질·손상 한계·정비 가능 시간은 각 제철소의 승인 도면, OEM 자료, 검사 실측값 및 작업허가 기준으로 대체해야 합니다.</div>
+<div class="sw-panel" id="sw_schedule_panel">
+ <div class="sw-panel-head"><h3>6. MILP 반영 생산·정비 통합 공정표</h3><span>계산 결과가 이 표에 직접 표시됩니다</span></div>
+ <div class="sw-schedule-status" id="sw_schedule_status">생산 시퀀스를 불러오는 중입니다. MILP 계산 전에는 공정 순서만 표시됩니다.</div>
+ <div id="sw_schedule_table" class="sw-schedule-table"></div>
+ <div class="sw-schedule-legend"><span><i class="sw-bar production"></i>생산 운전</span><span><i class="sw-bar maintenance"></i>MILP 정비 배정</span><span><i class="sw-bar noassign"></i>정비 배정 없음</span></div>
+ <p class="sw-small">정비 배정 결과는 MILP 솔버가 반환한 선택 변수 xᵢₜ를 사용합니다. 현재 모델은 생산 시퀀스가 고정되어 있으며, 정비를 배정한 단계의 시작 전 정지창에서 작업한다고 가정합니다.</p>
+</div><div class="sw-footnote"><b>도면 사용 범위:</b> 이 화면의 설비 단면은 구조와 손상 위치를 이해하기 위한 개념도입니다. 실제 설비 치수·내화물 두께·재질·손상 한계·정비 가능 시간은 각 제철소의 승인 도면, OEM 자료, 검사 실측값 및 작업허가 기준으로 대체해야 합니다.</div>
 </div>
 <div id="p_ladle">
 <div class="sub">SINTEF 공개 코드(refractorywear)를 공개 히트 7654321(래들 12번)을 기준으로, 조건을 바꿔 실제 모델을 다시 돌린 결과(324건)를 보간해요 · 새 라이닝에서 1히트 · 보간 오차 평균 약 5%, 최대 약 11% · 대기시간은 모델의 빈 래들 구간을 바꿔 다시 돌린 결과</div>
