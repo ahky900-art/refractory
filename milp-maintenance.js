@@ -166,6 +166,8 @@
     chosen.sort((a,b)=>a.period-b.period);
     const rows = chosen.map(r=>`<tr><td>${r.period}</td><td>${esc(r.stage)}</td><td>${esc(r.name)}</td><td>${r.load.toFixed(1)}%</td><td>${r.duration.toFixed(1)}</td><td>${r.cost.toFixed(1)}</td><td>${r.impact.toFixed(1)}</td><td>${r.total.toFixed(1)}</td></tr>`).join("");
     const statusText = result.status === glpk.GLP_OPT ? "최적해" : "실행 가능한 해(최적성 미확인)";
+    window.maintenanceLastMILPAssignments = {chosen, sequence:seq, status:statusText, objective:Number(result.z)};
+    window.dispatchEvent(new CustomEvent("maintenance-milp-result",{detail:window.maintenanceLastMILPAssignments}));
     out.innerHTML = `
       <div class="milp-kpis">
         <div><span>솔버 상태</span><b>${statusText}</b></div>
