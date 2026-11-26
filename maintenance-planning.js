@@ -39,7 +39,7 @@
     surge:{label:"단기 증산·고부하",desc:"높은 생산부하가 지속되는 경우 정비 전까지의 잔여 운전 여유를 보수적으로 검토합니다.",extra:["부하율·온도·유량·차압·운전시간의 상위 구간을 확인","핫스팟·마모 집중부의 실측 주기를 단축하고 예비품 확보"]}
   };
 
-  const state = {key:"kiln",profile:"steady",checks:{},rendered:false,sequence:[{name:"원료/제품 A",condition:"기준 조업",load:100,hours:8},{name:"원료/제품 B",condition:"조성·부하 변경",load:110,hours:6}]};
+  const state = {key:"kiln",profile:"steady",checks:{},rendered:false,sequence:[{name:"원료/제품 A",condition:"기준 조업",load:100,hours:8,window:0},{name:"원료/제품 B",condition:"조성·부하 변경",load:110,hours:6,window:0}]};
   const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 
@@ -86,8 +86,8 @@
       $m("maint_stopdate").onchange=paint;
       $m("maint_reset").onclick=()=>{state.checks={};paint()};
       $m("maint_print").onclick=()=>window.print();
-      $m("maint_add_seq").onclick=()=>{state.sequence.push({name:"신규 생산 단계",condition:"조건 입력",load:100,hours:1});paintSequence()};
-      $m("maint_reset_seq").onclick=()=>{state.sequence=[{name:"원료/제품 A",condition:"기준 조업",load:100,hours:8}];paintSequence()};
+      $m("maint_add_seq").onclick=()=>{state.sequence.push({name:"신규 생산 단계",condition:"조건 입력",load:100,hours:1,window:0});paintSequence()};
+      $m("maint_reset_seq").onclick=()=>{state.sequence=[{name:"원료/제품 A",condition:"기준 조업",load:100,hours:8,window:0}];paintSequence()};
       state.rendered=true;
     }
     paintSequence();
@@ -95,11 +95,11 @@
   }
   function paintSequence(){
     const body=$m("maint_seq_rows"); if(!body)return;
-    body.innerHTML=state.sequence.map((r,i)=>`<tr><td>${i+1}</td><td><input data-seq="name" data-i="${i}" value="${esc(r.name)}"></td><td><input data-seq="condition" data-i="${i}" value="${esc(r.condition)}"></td><td><input type="number" min="0" max="150" data-seq="load" data-i="${i}" value="${esc(r.load)}"></td><td><input type="number" min="0" data-seq="hours" data-i="${i}" value="${esc(r.hours)}"></td><td><button type="button" data-del-seq="${i}">삭제</button></td></tr>`).join("");
+    body.innerHTML=state.sequence.map((r,i)=>`<tr><td>${i+1}</td><td><input data-seq="name" data-i="${i}" value="${esc(r.name)}"></td><td><input data-seq="condition" data-i="${i}" value="${esc(r.condition)}"></td><td><input type="number" min="0" max="150" data-seq="load" data-i="${i}" value="${esc(r.load)}"></td><td><input type="number" min="0" data-seq="hours" data-i="${i}" value="${esc(r.hours)}"></td><td><input type="number" min="0" step="0.5" data-seq="window" data-i="${i}" value="${esc(r.window ?? 0)}" title="해당 단계 시작 전 정비 가능한 시간"></td><td><button type="button" data-del-seq="${i}">삭제</button></td></tr>`).join("");
     body.querySelectorAll("[data-seq]").forEach(el=>el.onchange=e=>{const r=state.sequence[+e.target.dataset.i],k=e.target.dataset.seq;r[k]=(k==="load"||k==="hours")?Number(e.target.value):e.target.value;paintSequence();paint()});
     body.querySelectorAll("[data-del-seq]").forEach(el=>el.onclick=e=>{state.sequence.splice(+e.target.dataset.delSeq,1);paintSequence();paint()});
     const total=state.sequence.reduce((a,r)=>a+(Number(r.hours)||0),0);
-    $m("maint_seq_total").textContent="입력 단계 "+state.sequence.length+"개 · 계획 운전시간 "+total.toFixed(1)+" h";
+    $m("maint_seq_total").textContent="입력 단계 "+state.sequence.length+"개 · 계획 운전시간 "+total.toFixed(1)+" h · 각 단계의 정비 가능시간도 입력하세요.";window.maintenanceGetSequenceForMILP=()=>state.sequence.map(r=>({name:r.name,condition:r.condition,load:Number(r.load),hours:Number(r.hours),window:Number(r.window)||0}));window.dispatchEvent(new Event("maintenance-sequence-updated"));
   }
   function paint(){
     const eq=equipment[state.key], prof=sequenceProfiles[state.profile];
