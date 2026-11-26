@@ -165,17 +165,17 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 </div>
 <div class="sw-panel" id="hf_milp_panel">
  <div class="sw-panel-head"><h3>가열로 4대 상태 및 정비 대상 선정</h3><span>14일 정비 · 주간/야간 2교대</span></div>
- <div class="hf-assumption">모델 가정: 4대 가열로가 병렬 운전되며, 1대 정비 중 나머지 3대가 해당 교대 생산량을 충족할 수 있다고 가정합니다. 수치와 설비 컨디션은 가상 예시입니다.</div>
+ <div class="hf-assumption">모델 가정: 1·2호기는 A강종군, 3·4호기는 B강종군을 담당합니다. 강종군 간 대체생산은 불가하며, 정비 중에는 같은 강종군의 다른 1대가 수요를 충족해야 합니다. 수치와 설비 컨디션은 가상 예시입니다.</div>
  <div id="hf_condition_table" class="sw-schedule-table"></div>
- <div class="hf-sequence-head"><b>고정 생산 시퀀스</b><span>28일 × 주간/야간 = 56개 교대</span></div>
+ <div class="hf-sequence-head"><b>고정 생산 시퀀스</b><span>28일 × 주간/야간 = 56개 교대 · A/B 강종군별 수요</span></div>
  <div id="hf_shift_sequence" class="hf-shift-sequence"></div>
  <div class="hf-model-grid">
   <div class="hf-model-card"><b>목적함수</b><div class="hf-formula">최소화　정비비용 + 정비 지연 위험비용 + 생산 부족 페널티</div><p>Cᵢ는 정비비, αᵢs는 정비 시작 지연비용, Pᵢ는 긴급도 우선순위 반영값입니다. 생산수요 부족은 제약식으로 허용하지 않습니다.</p></div>
-  <div class="hf-model-card"><b>핵심 제약조건</b><div class="hf-formula">min Σᵢₛ(Cᵢ + αᵢs − Pᵢ)xᵢₛ　/　Σᵢₛxᵢₛ=1　/　Σᵢ,ₛ∈Aₜqᵢxᵢₛ ≤ Σᵢqᵢ−Dₜ　/　s/2 ≤ RULᵢ</div><p>xᵢₛ=1이면 가열로 i를 시작 교대 s부터 28교대(14일) 정비합니다. Aₜ는 교대 t에 정비 중인 시작시점 집합, qᵢ는 가열로 생산능력, Dₜ는 해당 교대 생산수요입니다.</p></div>
+  <div class="hf-model-card"><b>핵심 제약조건</b><div class="hf-formula">min Σᵢₛ(Cᵢ + αᵢs − Pᵢ)xᵢₛ　/　Σᵢₛxᵢₛ=1　/　Qₐ−정비손실ₐₜ≥Dₐₜ, Qᵦ−정비손실ᵦₜ≥Dᵦₜ　/　s/2≤RULᵢ</div><p>xᵢₛ=1이면 가열로 i를 시작 교대 s부터 28교대(14일) 정비합니다. 각 강종군은 자기 담당 가열로 2대의 능력만 합산합니다. 다른 강종군의 여유능력은 대체 생산능력으로 인정하지 않습니다.</p></div>
  </div>
  <div class="hf-actions"><button class="sw-primary" id="hf_run">가열로 4대 MILP 정비 대상·시점 계산</button><span id="hf_status">계산 전: 가상 컨디션과 생산 시퀀스를 확인하세요.</span></div>
  <div id="hf_result" class="hf-result"></div>
- <div class="hf-gantt-head"><b>28일 생산·정비 간트차트</b><span>각 일자 칸은 주간(D)·야간(N) 2개 교대로 분리됩니다. 생산수요·가용능력·4대 설비 정비 상태를 같은 시간축에 정렬합니다.</span></div>
+ <div class="hf-gantt-head"><b>28일 생산·정비 간트차트</b><span>각 일자 칸은 주간(D)·야간(N) 2개 교대로 분리됩니다. A/B 강종군별 생산수요·가용능력과 4대 설비 정비 상태를 같은 시간축에 정렬합니다.</span></div>
  <div id="hf_gantt" class="hf-gantt"></div>
  <div class="hf-legend"><span><i class="hf-key prod"></i>생산 가능</span><span><i class="hf-key maint"></i>MILP 정비</span><span><i class="hf-key risk"></i>정비 권고시점 경과</span></div>
  <p class="sw-small">모델 범위: 정비 대상 1대, 정비기간 14일(28교대), 계획기간 28일(56교대). 실제 가열로의 독립 운전 가능 여부, 제품별 배정, 열량·장입량·슬래브 재고, 냉각·가스 프리·비계·건조 승온 및 정비 인력 제약은 현장 데이터로 추가해야 합니다. 이 계산은 교육용 계획 모델이며 작업허가나 안전판정을 대체하지 않습니다.</p>
