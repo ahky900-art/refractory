@@ -111,7 +111,7 @@
   }).join("");
   box.innerHTML='<table><thead><tr><th>순서</th><th>생산 단계</th><th>부하</th><th>운전시간</th><th>단계 시작 전 누적 부하시간</th><th>정비창</th><th>MILP 정비 배정</th><th>구분</th></tr></thead><tbody>'+rows+'</tbody></table>';
  }
- window.addEventListener("maintenance-sequence-updated",renderSchedule);
+ window.addEventListener("maintenance-sequence-updated",()=>{window.maintenanceLastMILPAssignments=null;renderSchedule();});
  window.addEventListener("maintenance-milp-result",renderSchedule);
  function init(){
   if(!$("sw_flow"))return;
