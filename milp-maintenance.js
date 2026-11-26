@@ -4,6 +4,19 @@
  */
 (() => {
   const $ = id => document.getElementById(id);
+  let glpkInstancePromise = null;
+  async function loadGlpk() {
+    if (!glpkInstancePromise) {
+      glpkInstancePromise = import("https://cdn.jsdelivr.net/npm/glpk.js@4.0.2/+esm")
+        .then(mod => {
+          const factory = mod.default || mod.GLPK;
+          if (typeof factory !== "function") throw new Error("GLPK.js 모듈에서 초기화 함수를 찾지 못했습니다.");
+          return factory();
+        })
+        .catch(err => { glpkInstancePromise = null; throw err; });
+    }
+    return glpkInstancePromise;
+  }
   const jobs = [
     {name:"래들", life:"", duration:"", cost:""},
     {name:"로타리 킬른", life:"", duration:"", cost:""},
@@ -67,12 +80,13 @@
       out.innerHTML = "<b>입력 확인</b><ul>"+errors.map(x=>"<li>"+esc(x)+"</li>").join("")+"</ul>";
       return;
     }
-    if (typeof window.GLPK !== "function") {
-      out.innerHTML = "최적화 엔진(GLPK.js)을 불러오지 못했습니다. 인터넷 연결 또는 CDN 접근을 확인한 뒤 새로고침하세요.";
+    if (seq.every(p => p.window <= 0)) {
+      out.innerHTML = "생산 시퀀스의 <b>정비 가능시간</b>이 모두 0시간입니다. 각 단계 시작 전에 확보 가능한 정지창을 입력하세요. 예: 1단계 12시간, 2단계 8시간.";
       return;
     }
 
-    const glpk = await window.GLPK();
+    out.textContent = "최적화 엔진(GLPK.js) 불러오는 중...";
+    const glpk = await loadGlpk();
     const n = jobs.length, m = seq.length;
     const life = jobs.map(j => Number(j.life));
     const duration = jobs.map(j => Number(j.duration));
