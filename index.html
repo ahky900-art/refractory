@@ -192,6 +192,13 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
 .hf-constraint-list small{display:block;color:var(--mut);line-height:1.5}
 .hf-result-table{margin-top:12px}
 .hf-result-table tr.selected{background:var(--ok)}
+
+.hf-preview-panel{border:2px solid var(--line)}
+.hf-preview-panel .status{margin:8px 0}
+.hf-preview-panel .table-wrap table{min-width:760px}
+.hf-preview-panel tr.precheck-best{background:var(--ok)}
+.hf-preview-panel tr.precheck-no{opacity:.72}
+.precheck-formula{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.55;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -215,8 +222,15 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
    <div><label for="max_down" class="note">동시 정비 허용 대수</label><input id="max_down" type="number" min="1" max="4" value="1"></div>
   </div>
  </section>
+ <section class="sw-panel hf-preview-panel">
+  <div class="sw-panel-head"><h3>3. 실행 전 후보별 사전 검산</h3><span>입력값을 바꾸면 자동 갱신</span></div>
+  <p class="note">아직 MILP 솔버를 실행하지 않아도 각 가열로를 정비한다고 가정했을 때의 목적함수 계수와 생산능력 제약을 미리 비교합니다. 아래 표는 최종 최적해가 아니라 후보별 사전 검토 결과입니다.</p>
+  <div id="precheck_status" class="status">입력값을 확인하는 중입니다.</div>
+  <div id="precheck_table"></div>
+  <div id="precheck_explain" class="note"></div>
+ </section>
  <section class="sw-panel hf-model-explainer">
-  <div class="sw-panel-head"><h3>3. MILP 수학적 모델 — min / s.t.</h3><span>목적함수 → 제약조건 → 변수 정의</span></div>
+  <div class="sw-panel-head"><h3>4. MILP 수학적 모델 — min / s.t.</h3><span>목적함수 → 제약조건 → 변수 정의</span></div>
   <div class="hf-model-card">
    <b>① 목적함수 (Objective Function)</b>
    <div class="hf-equation hf-objective">min Z = Σᵢ₌₁⁴ Σₛ₌₀⁵⁶⁻ᴸ [ Cᵢ + αᵢ · dₛ − Rᵢ ] xᵢₛ</div>
@@ -250,13 +264,13 @@ select{width:100%;padding:6px 8px;border:0.5px solid var(--line);background:var(
   </div>
  </section>
  <section class="sw-panel">
-  <div class="sw-panel-head"><h3>4. 최적화 실행 및 결과</h3><button class="sw-primary" id="run_milp">MILP 최적 정비 일정 계산</button></div>
+  <div class="sw-panel-head"><h3>5. 최적화 실행 및 결과</h3><button class="sw-primary" id="run_milp">MILP 최적 정비 일정 계산</button></div>
   <div id="solver_status" class="status">생산 시퀀스와 가열로 입력값을 확인한 후 계산하세요.</div>
   <div id="result_kpis" class="kpis"></div>
   <div id="result_detail"></div>
  </section>
  <section class="sw-panel">
-  <h3>5. 생산·정비 Gantt 및 능력 검산</h3>
+  <h3>6. 생산·정비 Gantt 및 능력 검산</h3>
   <div class="legend"><span><i class="sw-key prod"></i>생산 가능</span><span><i class="sw-key maint"></i>정비</span><span><i class="sw-key demand"></i>수요</span></div>
   <div id="gantt" class="gantt"><div class="note">MILP 계산 후 일정이 표시됩니다.</div></div>
   <div id="capacity_audit"></div>
