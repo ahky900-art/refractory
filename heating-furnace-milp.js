@@ -45,14 +45,69 @@
  function renderTotals(){
   const days=phases.reduce((a,p)=>a+(num(p.days)||0),0);
   $("sequence_total").textContent="입력 기간 합계: "+days+" / 28일"+(days===28?" · 계획기간 충족":" · 28일과 일치시켜야 계산 가능");
-  $("sequence_total").style.color=days===28?"#28764a":"#a45b18";
+  $("sequence_total").style.color=days===28?"#28764a":"#a45b18";\n  renderPreview();
  }
  function renderFurnaces(){
   $("furnace_rows").innerHTML=furnaces.map((f,i)=>'<tr><td><b>'+f.name+'</b></td><td><select data-furnace="'+i+'" data-key="grade"><option value="A" '+(f.grade==="A"?"selected":"")+'>A강종군</option><option value="B" '+(f.grade==="B"?"selected":"")+'>B강종군</option></select></td>'+
    ['capacity','rul','cost','risk','delay'].map((k)=>'<td><input type="number" min="0" step="1" data-furnace="'+i+'" data-key="'+k+'" value="'+f[k]+'"></td>').join("")+'</tr>').join("");
-  $("furnace_rows").querySelectorAll("[data-furnace]").forEach(el=>el.addEventListener("change",e=>{
+  $("furnace_rows").querySelectorAll("[data-furnace]").forEach(el=>el.addEventListener("input",e=>{\n   const f=furnaces[Number(e.target.dataset.furnace)],k=e.target.dataset.key;f[k]=k==="grade"?e.target.value:num(e.target.value);lastResult=null;renderPreview();\n  }));\n  $("furnace_rows").querySelectorAll("[data-furnace]").forEach(el=>el.addEventListener("change",e=>{
    const f=furnaces[Number(e.target.dataset.furnace)],k=e.target.dataset.key;f[k]=k==="grade"?e.target.value:num(e.target.value);lastResult=null;
   }));
+ }
+ function renderPreview(){
+  const status=$("precheck_status"),table=$("precheck_table"),explain=$("precheck_explain");
+  if(!status||!table||!explain)return;
+  try{
+   const seq=expandSequence(),days=num($("maintenance_days").value),duration=days*2,maxStart=SHIFTS-duration,maxDown=num($("max_down").value);
+   if(!Number.isInteger(days)||days<1||days>28)throw new Error("정비기간은 1~28일 정수여야 합니다.");
+   if(!Number.isInteger(maxDown)||maxDown<1||maxDown>4)throw new Error("동시 정비 허용 대수는 1~4대여야 합니다.");
+   furnaces.forEach(f=>["capacity","rul","cost","risk","delay"].forEach(k=>{if(!Number.isFinite(num(f[k]))||num(f[k])<0)throw new Error(f.name+"의 "+k+" 값을 확인하세요.");}));
+   const rows=furnaces.map((f,i)=>{
+    let best=null;
+    for(let st=0;st<=maxStart;st++){
+     const day=Math.floor(st/2)+1;
+     if(day>f.rul)continue;
+     let feasible=true,minSlack=Infinity,minAt=null;
+     for(let t=0;t<SHIFTS;t++){
+      for(const grade of ["A","B"]){
+       const total=furnaces.filter(z=>z.grade===grade).reduce((a,z)=>a+z.capacity,0);
+       const down=f.grade===grade&&t>=st&&t<st+duration?f.capacity:0;
+       const demand=grade==="A"?seq[t].a:seq[t].b;
+       const slack=total-down-demand;
+       if(slack<minSlack){minSlack=slack;minAt={t,grade,available:total-down,demand};}
+       if(slack < -1e-8)feasible=false;
+      }
+     }
+     if(!feasible)continue;
+     const delayed=day-1,value=f.cost+f.delay*delayed-f.risk;
+     if(!best||value<best.value)best={start:st,day,delayed,value,minSlack,minAt};
+    }
+    return {f,i,best};
+   });
+   const feasibleRows=rows.filter(r=>r.best);
+   const winner=feasibleRows.reduce((a,r)=>!a||r.best.value<a.best.value?r:a,null);
+   status.className=feasibleRows.length?"status ok":"status warn";
+   status.textContent=feasibleRows.length
+    ?"사전 검산 완료 · "+feasibleRows.length+"/4개 가열로에서 생산능력·RUL 조건을 만족하는 정비 일정 발견 · 솔버 실행 전 참고값"
+    :"현재 입력값으로는 생산능력·RUL 조건을 모두 만족하는 정비 후보가 없습니다.";
+   table.innerHTML='<div class="table-wrap"><table><thead><tr><th>가열로</th><th>강종군</th><th>가장 유리한 정비 착수</th><th>정비비 Cᵢ</th><th>지연비 αᵢ×dₛ</th><th>위험회피 Rᵢ</th><th>목적함수 계수</th><th>최소 여유능력</th><th>판정</th></tr></thead><tbody>'+
+    rows.map(r=>{
+     const b=r.best,isWinner=winner&&winner.i===r.i;
+     return '<tr class="'+(isWinner?'precheck-best':b?'':'precheck-no')+'"><td><b>'+r.f.name+'</b></td><td>'+r.f.grade+'</td><td>'+(b?b.day+'일차 '+(b.start%2===0?'주간':'야간'):'가능 일정 없음')+'</td><td>'+r.f.cost.toLocaleString("ko-KR")+'</td><td>'+(b?(r.f.delay*b.delayed).toLocaleString("ko-KR"):'—')+'</td><td>'+r.f.risk.toLocaleString("ko-KR")+'</td><td><b>'+(b?b.value.toLocaleString("ko-KR"):'—')+'</b></td><td>'+(b?b.minSlack.toLocaleString("ko-KR")+'t':'—')+'</td><td>'+(isWinner?'<b>사전 우선 후보</b>':b?'조건 충족':'조건 불충족')+'</td></tr>';
+    }).join("")+'</tbody></table></div>';
+   if(winner){
+    const b=winner.best,at=b.minAt;
+    explain.innerHTML='<div class="precheck-formula"><b>사전 우선 후보:</b> '+winner.f.name+'<br>'+
+     'Zᵢₛ = Cᵢ + αᵢ × dₛ − Rᵢ = '+winner.f.cost.toLocaleString("ko-KR")+' + '+winner.f.delay.toLocaleString("ko-KR")+' × '+b.delayed+' − '+winner.f.risk.toLocaleString("ko-KR")+' = <b>'+b.value.toLocaleString("ko-KR")+'만원</b><br>'+
+     '최소 생산능력 여유: '+at.grade+'강종군 · '+(Math.floor(at.t/2)+1)+'일차 '+(at.t%2===0?'주간':'야간')+' · '+at.available.toLocaleString("ko-KR")+' − '+at.demand.toLocaleString("ko-KR")+' = '+b.minSlack.toLocaleString("ko-KR")+'t</div>'+
+     '<p>이 값은 현재 입력조건에서 후보별로 가능한 정비 착수 시점 중 목적함수 계수가 가장 낮은 일정입니다. 실제 MILP 실행 결과와 비교해 최종 확인하세요.</p>';
+   }else{
+    explain.textContent="생산수요가 가열로 총능력을 초과하는지, 정비기간이 너무 긴지, RUL이 계획기간보다 짧은지 확인하세요.";
+   }
+   explain.innerHTML+='<p class="note">참고: 한 번에 정비하는 대상이 1대이므로 동시 정비 상한 M은 1 이상이면 현재 후보 비교 결과에 영향을 주지 않습니다. 위험회피 편익 Rᵢ는 예시 입력값이며 실측 고장확률×고장손실로 보정해야 합니다.</p>';
+  }catch(e){
+   status.className="status warn";status.textContent="사전 검산 보류: "+e.message;table.innerHTML="";explain.textContent="";
+  }
  }
  function expandSequence(){
   const days=phases.reduce((a,p)=>a+num(p.days),0);
@@ -194,5 +249,5 @@
  $("add_phase").addEventListener("click",()=>{phases.push({name:"신규 생산 단계",days:1,aDay:1200,aNight:1100,bDay:1100,bNight:1000});lastResult=null;renderPhases();});
  $("reset_sequence").addEventListener("click",()=>{phases=defaults();lastResult=null;renderPhases();});
  $("run_milp").addEventListener("click",()=>solve().catch(e=>{$("solver_status").className="status error";$("solver_status").textContent="계산 오류: "+(e.message||String(e));}));
- renderPhases();renderFurnaces();
+ renderPhases();renderFurnaces();\n ["maintenance_days","max_down"].forEach(id=>$(id).addEventListener("input",()=>renderPreview()));\n renderPreview();
 })();
