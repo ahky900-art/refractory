@@ -131,9 +131,33 @@
   });
   const objectiveValue=Number(result.z),label=result.status===g.GLP_OPT?"최적해":"실행 가능한 해(최적성 미확인)";
   const chosenCost=f.cost+f.delay*(startDay-1)-f.risk;
+  const candidateRows=furnaces.map((candidate,i)=>{
+   let best=null;
+   for(let st=0;st<=maxStart;st++){
+    const day=Math.floor(st/2)+1;
+    if(day>candidate.rul)continue;
+    let feasible=true,minSlack=Infinity;
+    for(let t=0;t<SHIFTS;t++){
+     const active=t>=st&&t<st+duration;
+     const total=furnaces.filter(z=>z.grade===candidate.grade).reduce((a,z)=>a+z.capacity,0);
+     const available=total-(active?candidate.capacity:0);
+     const demand=candidate.grade==="A"?seq[t].a:seq[t].b;
+     const slack=available-demand;
+     minSlack=Math.min(minSlack,slack);
+     if(slack < -1e-8){feasible=false;break;}
+    }
+    if(!feasible)continue;
+    const value=candidate.cost+candidate.delay*(day-1)-candidate.risk;
+    if(!best||value<best.value)best={start:st,day,value,minSlack};
+   }
+   return {candidate,i,best};
+  });
+  const candidateTable='<h3>가열로별 후보 비교 — 목적함수와 제약조건 검토</h3><div class="table-wrap result-table"><table><thead><tr><th>가열로</th><th>RUL</th><th>가장 유리한 착수</th><th>목적함수 계수 (만원)</th><th>생산능력 제약</th><th>선택</th></tr></thead><tbody>'+
+   candidateRows.map(r=>'<tr class="'+(r.i===picked.i?'selected':'')+'"><td>'+r.candidate.name+'</td><td>'+r.candidate.rul+'일</td><td>'+(r.best?r.best.day+'일차 '+(r.best.start%2===0?'주간':'야간'):'가능한 일정 없음')+'</td><td>'+(r.best?r.best.value.toLocaleString("ko-KR"):'—')+'</td><td>'+(r.best?'충족 · 최소 여유 '+r.best.minSlack.toLocaleString("ko-KR")+'t':'미충족')+'</td><td>'+(r.i===picked.i?'<b>선정</b>':'—')+'</td></tr>').join('')+
+   '</tbody></table></div>';
   status.className="status ok";status.textContent=label+" · "+f.name+" · "+startDay+"일차 "+startShift+" 착수 · "+durationDays+"일 연속 정비";
   $("result_kpis").innerHTML='<div class="kpi"><span>선정 가열로</span><b>'+f.name+'</b><span>'+f.grade+'강종군</span></div><div class="kpi"><span>정비 착수</span><b>'+startDay+'일차 '+startShift+'</b><span>종료 '+endDay+'일차 '+endName+'</span></div><div class="kpi"><span>목적함수 최솟값</span><b>'+objectiveValue.toLocaleString("ko-KR",{maximumFractionDigits:1})+'</b><span>만원 환산</span></div><div class="kpi"><span>정비기간</span><b>'+durationDays+'일</b><span>'+duration+'개 교대</span></div>';
-  detail.innerHTML='<h3>선정 근거</h3><div class="formula">'+f.name+' : C('+f.cost+') + α('+f.delay+') × 지연일('+(startDay-1)+') − R('+f.risk+') = '+chosenCost.toLocaleString("ko-KR")+' 만원 환산</div><p class="note">각 가열로의 가능한 착수 교대 중 목적함수와 모든 생산능력·RUL 제약을 만족하는 조합을 비교해 최소값을 선택했습니다. RUL은 정비 착수일 기준 하드 제약입니다.</p>'+
+  detail.innerHTML=candidateTable+'<h3>선정 근거</h3><div class="formula">'+f.name+' : C('+f.cost+') + α('+f.delay+') × 지연일('+(startDay-1)+') − R('+f.risk+') = '+chosenCost.toLocaleString("ko-KR")+' 만원 환산</div><p class="note">각 가열로의 가능한 착수 교대 중 목적함수와 모든 생산능력·RUL 제약을 만족하는 조합을 비교해 최소값을 선택했습니다. RUL은 정비 착수일 기준 하드 제약입니다.</p>'+
    '<div class="table-wrap result-table"><table><thead><tr><th>강종군</th><th>계획기간 최소 여유능력</th><th>수요 충족</th></tr></thead><tbody>'+checks.map(c=>'<tr><td>'+c.grade+'강종군</td><td>'+c.minSlack.toLocaleString("ko-KR")+' t/교대</td><td>'+(c.ok?"충족":"미충족")+'</td></tr>').join("")+'</tbody></table></div>'+
    '<p class="note">선정 설비: '+f.name+' · RUL '+f.rul+'일 · 정비비 '+f.cost+'만원 · 위험회피 편익 '+f.risk+'만원 환산 · 지연비용 '+f.delay+'만원/일.</p>';
   $("capacity_audit").innerHTML=checks.map(c=>{
