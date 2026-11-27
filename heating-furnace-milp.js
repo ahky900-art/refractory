@@ -33,7 +33,7 @@
    '<td><input type="number" min="0" data-phase="'+i+'" data-key="bDay" value="'+p.bDay+'"></td>'+
    '<td><input type="number" min="0" data-phase="'+i+'" data-key="bNight" value="'+p.bNight+'"></td>'+
    '<td><button data-remove-phase="'+i+'">삭제</button></td></tr>').join("");
-  $("sequence_rows").querySelectorAll("[data-phase]").forEach(el=>el.addEventListener("change",e=>{
+  $("sequence_rows").querySelectorAll("[data-phase]").forEach(el=>el.addEventListener("input",e=>{
    const p=phases[Number(e.target.dataset.phase)],k=e.target.dataset.key;
    p[k]=k==="name"?e.target.value:num(e.target.value);lastResult=null;renderTotals();
   }));
@@ -45,12 +45,16 @@
  function renderTotals(){
   const days=phases.reduce((a,p)=>a+(num(p.days)||0),0);
   $("sequence_total").textContent="입력 기간 합계: "+days+" / 28일"+(days===28?" · 계획기간 충족":" · 28일과 일치시켜야 계산 가능");
-  $("sequence_total").style.color=days===28?"#28764a":"#a45b18";\n  renderPreview();
+  $("sequence_total").style.color=days===28?"#28764a":"#a45b18";
+  renderPreview();
  }
  function renderFurnaces(){
   $("furnace_rows").innerHTML=furnaces.map((f,i)=>'<tr><td><b>'+f.name+'</b></td><td><select data-furnace="'+i+'" data-key="grade"><option value="A" '+(f.grade==="A"?"selected":"")+'>A강종군</option><option value="B" '+(f.grade==="B"?"selected":"")+'>B강종군</option></select></td>'+
    ['capacity','rul','cost','risk','delay'].map((k)=>'<td><input type="number" min="0" step="1" data-furnace="'+i+'" data-key="'+k+'" value="'+f[k]+'"></td>').join("")+'</tr>').join("");
-  $("furnace_rows").querySelectorAll("[data-furnace]").forEach(el=>el.addEventListener("input",e=>{\n   const f=furnaces[Number(e.target.dataset.furnace)],k=e.target.dataset.key;f[k]=k==="grade"?e.target.value:num(e.target.value);lastResult=null;renderPreview();\n  }));\n  $("furnace_rows").querySelectorAll("[data-furnace]").forEach(el=>el.addEventListener("change",e=>{
+  $("furnace_rows").querySelectorAll("[data-furnace]").forEach(el=>el.addEventListener("input",e=>{
+   const f=furnaces[Number(e.target.dataset.furnace)],k=e.target.dataset.key;f[k]=k==="grade"?e.target.value:num(e.target.value);lastResult=null;renderPreview();
+  }));
+  $("furnace_rows").querySelectorAll("[data-furnace]").forEach(el=>el.addEventListener("change",e=>{
    const f=furnaces[Number(e.target.dataset.furnace)],k=e.target.dataset.key;f[k]=k==="grade"?e.target.value:num(e.target.value);lastResult=null;
   }));
  }
@@ -249,5 +253,7 @@
  $("add_phase").addEventListener("click",()=>{phases.push({name:"신규 생산 단계",days:1,aDay:1200,aNight:1100,bDay:1100,bNight:1000});lastResult=null;renderPhases();});
  $("reset_sequence").addEventListener("click",()=>{phases=defaults();lastResult=null;renderPhases();});
  $("run_milp").addEventListener("click",()=>solve().catch(e=>{$("solver_status").className="status error";$("solver_status").textContent="계산 오류: "+(e.message||String(e));}));
- renderPhases();renderFurnaces();\n ["maintenance_days","max_down"].forEach(id=>$(id).addEventListener("input",()=>renderPreview()));\n renderPreview();
+ renderPhases();renderFurnaces();
+ ["maintenance_days","max_down"].forEach(id=>$(id).addEventListener("input",()=>renderPreview()));
+ renderPreview();
 })();
